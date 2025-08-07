@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
-import '../../utils/constants.dart';
 
 class CaregiverProfileScreen extends StatefulWidget {
   const CaregiverProfileScreen({super.key});
@@ -13,96 +10,53 @@ class CaregiverProfileScreen extends StatefulWidget {
 }
 
 class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final AuthService _authService = AuthService();
-
-  // Form controllers
-  final _fullNameController = TextEditingController();
-  final _ageController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _bioController = TextEditingController();
-  final _emergencyContactController = TextEditingController();
-  final _medicalConditionsController = TextEditingController();
-  final _ratePerHourController = TextEditingController();
-
-  bool _isLoading = false;
   bool _isAvailableForWork = true;
   File? _profileImage;
-  UserModel? _userModel;
+  final ImagePicker _picker = ImagePicker();
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserProfile();
-  }
-
-  @override
-  void dispose() {
-    _fullNameController.dispose();
-    _ageController.dispose();
-    _addressController.dispose();
-    _phoneController.dispose();
-    _bioController.dispose();
-    _emergencyContactController.dispose();
-    _medicalConditionsController.dispose();
-    _ratePerHourController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadUserProfile() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // In a real app, fetch user data from Firestore
-      // For now, we'll use dummy data
-      _userModel = UserModel(
-        uid: 'dummy-uid',
-        fullName: 'Jane Smith',
-        email: 'jane.smith@example.com',
-        phoneNumber: '+1234567890',
-        role: AppConstants.roleCaregiver,
-        address: '123 Main St, Anytown, CA 12345',
-        age: 35,
-        bio:
-            'Experienced caregiver with 10 years of experience in elderly care.',
-        emergencyContact: '+1987654321',
-        medicalConditions: 'None',
-        ratePerHour: 25.0,
-        isAvailableForWork: true,
-      );
-
-      // Populate form fields
-      _fullNameController.text = _userModel!.fullName;
-      _ageController.text = _userModel!.age?.toString() ?? '';
-      _addressController.text = _userModel!.address ?? '';
-      _phoneController.text = _userModel!.phoneNumber;
-      _bioController.text = _userModel!.bio ?? '';
-      _emergencyContactController.text = _userModel!.emergencyContact ?? '';
-      _medicalConditionsController.text = _userModel!.medicalConditions ?? '';
-      _ratePerHourController.text = _userModel!.ratePerHour?.toString() ?? '';
-      _isAvailableForWork = _userModel!.isAvailableForWork;
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      // Show error
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
-    }
+  Future<void> _showImageSourceActionSheet() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera, color: Colors.orange),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.orange),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cancel, color: Colors.red),
+                title: const Text('Cancel'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
+      final XFile? image = await _picker.pickImage(
         source: source,
         maxWidth: 800,
         maxHeight: 800,
@@ -121,310 +75,364 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     }
   }
 
-  void _showImageSourceActionSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_camera),
-                title: const Text('Take Photo'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-              if (_profileImage != null)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text(
-                    'Remove Photo',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _profileImage = null;
-                    });
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // In a real app, update user data in Firestore
-      // For now, just show success message
-      await Future.delayed(
-        const Duration(seconds: 1),
-      ); // Simulate network delay
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully')),
-      );
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Profile Image
-                    GestureDetector(
-                      onTap: _showImageSourceActionSheet,
-                      child: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: _profileImage != null
-                                ? FileImage(_profileImage!)
-                                : null,
-                            child: _profileImage == null
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 60,
-                                    color: Colors.grey,
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: AppConstants.primaryColor,
-                                shape: BoxShape.circle,
+      backgroundColor: Colors.grey[50],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            // Profile Picture Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: _showImageSourceActionSheet,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.orange, width: 3),
+                      ),
+                      child: CircleAvatar(
+                        radius: 58,
+                        backgroundColor: Colors.white,
+                        backgroundImage: _profileImage != null
+                            ? FileImage(_profileImage!)
+                            : null,
+                        child: _profileImage == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _showImageSourceActionSheet,
+                    child: const Text(
+                      'Tap to change profile picture',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Personal Information Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Personal Information',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Full Name Field
+                  _buildInputField(
+                    label: 'Full Name',
+                    value: '',
+                    icon: Icons.person,
+                    iconColor: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Age Field
+                  _buildInputField(
+                    label: 'Age',
+                    value: '',
+                    icon: Icons.cake,
+                    iconColor: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Address Field
+                  _buildInputField(
+                    label: 'Address',
+                    value: '',
+                    icon: Icons.location_on,
+                    iconColor: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Phone Number Field
+                  _buildInputField(
+                    label: 'Phone Number',
+                    value: '',
+                    icon: Icons.phone,
+                    iconColor: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Bio Field
+                  _buildInputField(
+                    label: 'Bio / About Me',
+                    value: '',
+                    icon: Icons.info,
+                    iconColor: Colors.orange,
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Additional Information Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Additional Information',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Emergency Contact Field
+                  _buildInputField(
+                    label: 'Emergency Contact',
+                    value: '',
+                    icon: Icons.star,
+                    iconColor: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Medical Conditions Field
+                  _buildInputField(
+                    label: 'Medical Conditions (optional)',
+                    value: '',
+                    icon: Icons.medical_services,
+                    iconColor: Colors.orange,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Rate per Hour Field
+                  _buildInputField(
+                    label: 'Rate per Hour (\$)',
+                    value: '',
+                    icon: Icons.attach_money,
+                    iconColor: Colors.orange,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Available for Work Toggle
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          color: Colors.orange,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Available for work',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                                size: 20,
+                              const SizedBox(height: 4),
+                              Text(
+                                'Toggle to show availability to careseekers (if you are a CALiNGAPro)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Row(
+                          children: [
+                            const Text(
+                              'Available for work',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            Switch(
+                              value: _isAvailableForWork,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isAvailableForWork = value;
+                                });
+                              },
+                              activeColor: Colors.orange,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
 
-                    // Personal Info Section
-                    const Text(
-                      'Personal Information',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+            // Save Profile Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Save profile functionality
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Profile saved successfully!'),
+                      backgroundColor: Colors.green,
                     ),
-                    const SizedBox(height: 16),
-
-                    // Full Name
-                    TextFormField(
-                      controller: _fullNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your full name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Age
-                    TextFormField(
-                      controller: _ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Age',
-                        prefixIcon: Icon(Icons.cake),
-                      ),
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final age = int.tryParse(value);
-                          if (age == null || age < 18 || age > 100) {
-                            return 'Please enter a valid age between 18 and 100';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Address
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(
-                        labelText: 'Address',
-                        prefixIcon: Icon(Icons.home),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Phone Number
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        prefixIcon: Icon(Icons.phone),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Bio
-                    TextFormField(
-                      controller: _bioController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Bio',
-                        prefixIcon: Icon(Icons.description),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Additional Info Section
-                    const Text(
-                      'Additional Information',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Emergency Contact
-                    TextFormField(
-                      controller: _emergencyContactController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Emergency Contact',
-                        prefixIcon: Icon(Icons.emergency),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Medical Conditions
-                    TextFormField(
-                      controller: _medicalConditionsController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Medical Conditions',
-                        prefixIcon: Icon(Icons.medical_services),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Rate Per Hour
-                    TextFormField(
-                      controller: _ratePerHourController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Rate Per Hour (\$)',
-                        prefixIcon: Icon(Icons.attach_money),
-                      ),
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final rate = double.tryParse(value);
-                          if (rate == null || rate <= 0) {
-                            return 'Please enter a valid rate';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Available for Work Toggle
-                    SwitchListTile(
-                      title: const Text('Available for Work'),
-                      value: _isAvailableForWork,
-                      activeColor: AppConstants.primaryColor,
-                      onChanged: (value) {
-                        setState(() {
-                          _isAvailableForWork = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Save Button
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Save Profile'),
-                    ),
-                  ],
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'SAVE PROFILE',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey[50],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  initialValue: value,
+                  maxLines: maxLines,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

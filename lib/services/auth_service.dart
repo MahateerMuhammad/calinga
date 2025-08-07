@@ -141,6 +141,24 @@ class AuthService {
     }
   }
 
+  // Get current user data
+  Future<UserModel?> getCurrentUserData() async {
+    try {
+      if (currentUser != null) {
+        DocumentSnapshot doc = await _firestore
+            .collection('users')
+            .doc(currentUser!.uid)
+            .get();
+        if (doc.exists) {
+          return UserModel.fromJson(doc.data() as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Reset password
   Future<void> resetPassword({required String email}) async {
     await _auth.sendPasswordResetEmail(email: email);

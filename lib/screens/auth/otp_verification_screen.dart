@@ -77,7 +77,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         _recaptchaVerifier = RecaptchaVerifier(
           auth: FirebaseAuthPlatform.instance,
           container: 'recaptcha-container',
-          size: RecaptchaVerifierSize.invisible, // Use invisible reCAPTCHA
+          size: RecaptchaVerifierSize.compact, // Use compact reCAPTCHA
           theme: RecaptchaVerifierTheme.light,
           onSuccess: () {
             debugPrint('reCAPTCHA verification successful');
@@ -89,14 +89,16 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           onError: (FirebaseAuthException error) {
             debugPrint('reCAPTCHA verification failed: ${error.message}');
             setState(() {
-              _errorMessage = 'reCAPTCHA verification failed. Please try again.';
+              _errorMessage =
+                  'reCAPTCHA verification failed. Please try again.';
               _isLoading = false;
             });
           },
           onExpired: () {
             debugPrint('reCAPTCHA verification expired');
             setState(() {
-              _errorMessage = 'reCAPTCHA verification expired. Please try again.';
+              _errorMessage =
+                  'reCAPTCHA verification expired. Please try again.';
               _recaptchaLoaded = false;
               _isLoading = false;
             });
@@ -105,7 +107,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
         // Try to render the reCAPTCHA
         await _recaptchaVerifier!.render();
-        
+
         setState(() {
           _isLoading = false;
           _recaptchaLoaded = true;
@@ -115,10 +117,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       } catch (e) {
         debugPrint('Error initializing reCAPTCHA: $e');
         setState(() {
-          _errorMessage = 'reCAPTCHA initialization failed. Trying alternative method...';
+          _errorMessage =
+              'reCAPTCHA initialization failed. Trying alternative method...';
           _isLoading = false;
         });
-        
+
         // Try alternative approach without reCAPTCHA container
         _tryAlternativeWebAuth();
       }
@@ -139,7 +142,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       // Create a new reCAPTCHA verifier without container
       _recaptchaVerifier = RecaptchaVerifier(
         auth: FirebaseAuthPlatform.instance,
-        size: RecaptchaVerifierSize.invisible,
+        size: RecaptchaVerifierSize.compact,
         theme: RecaptchaVerifierTheme.light,
       );
 
@@ -153,7 +156,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     } catch (e) {
       debugPrint('Alternative method also failed: $e');
       setState(() {
-        _errorMessage = 'Verification setup failed. Please refresh the page and try again.';
+        _errorMessage =
+            'Verification setup failed. Please refresh the page and try again.';
         _isLoading = false;
       });
     }
@@ -173,7 +177,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   String _formatPhoneNumber(String phoneNumber) {
     // Ensure the phone number is in E.164 format
     String formatted = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-    
+
     if (!formatted.startsWith('+')) {
       // If it doesn't start with +, assume it needs a country code
       if (formatted.startsWith('63')) {
@@ -185,7 +189,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         formatted = '+63$formatted';
       }
     }
-    
+
     debugPrint('Formatted phone number: $formatted');
     return formatted;
   }
@@ -198,7 +202,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
     try {
       String formattedPhone = _formatPhoneNumber(widget.phoneNumber);
-      
+
       if (kIsWeb) {
         // Web platform - use signInWithPhoneNumber with reCAPTCHA
         if (_recaptchaVerifier == null) {
@@ -212,7 +216,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         setState(() {
           _isLoading = false;
         });
-        
+
         _startCountdown();
         debugPrint('OTP sent successfully via web platform');
       } else {
@@ -267,15 +271,18 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       setState(() {
         _isLoading = false;
         if (e.toString().contains('auth/argument-error')) {
-          _errorMessage = 'Invalid phone number format. Please check and try again.';
+          _errorMessage =
+              'Invalid phone number format. Please check and try again.';
         } else if (e.toString().contains('auth/too-many-requests')) {
           _errorMessage = 'Too many requests. Please wait and try again.';
         } else if (e.toString().contains('auth/app-not-authorized')) {
           _errorMessage = 'App not authorized for SMS. Please contact support.';
         } else if (e.toString().contains('recaptcha')) {
-          _errorMessage = 'reCAPTCHA verification required. Please refresh and try again.';
+          _errorMessage =
+              'reCAPTCHA verification required. Please refresh and try again.';
         } else {
-          _errorMessage = 'Failed to send OTP. Please check your phone number and try again.';
+          _errorMessage =
+              'Failed to send OTP. Please check your phone number and try again.';
         }
       });
     }
@@ -283,7 +290,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   Future<void> _verifyOTP([PhoneAuthCredential? credential]) async {
     String otpCode = _otpController.text.trim();
-    
+
     if (credential == null && otpCode.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter the OTP code.';
@@ -311,14 +318,16 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         phoneUserCredential = await _webConfirmationResult!.confirm(otpCode);
       } else {
         // Mobile platforms - use credential
-        PhoneAuthCredential authCredential = credential ??
+        PhoneAuthCredential authCredential =
+            credential ??
             PhoneAuthProvider.credential(
               verificationId: _verificationId,
               smsCode: otpCode,
             );
 
-        phoneUserCredential = await FirebaseAuth.instance
-            .signInWithCredential(authCredential);
+        phoneUserCredential = await FirebaseAuth.instance.signInWithCredential(
+          authCredential,
+        );
       }
 
       // If this is a new signup (has fullName and password), create the user account
@@ -387,10 +396,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             _errorMessage = 'The email address is invalid.';
             break;
           case 'provider-already-linked':
-            _errorMessage = 'This phone number is already linked to another account.';
+            _errorMessage =
+                'This phone number is already linked to another account.';
             break;
           case 'credential-already-in-use':
-            _errorMessage = 'This phone number is already associated with another account.';
+            _errorMessage =
+                'This phone number is already associated with another account.';
             break;
           default:
             _errorMessage = 'Verification failed: ${e.message}';
@@ -411,7 +422,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         _remainingTime = 60;
         _recaptchaLoaded = false;
       });
-      
+
       if (kIsWeb) {
         // Clear and reinitialize reCAPTCHA for web
         _recaptchaVerifier?.clear();
@@ -468,7 +479,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       else if (_recaptchaLoaded)
                         const Column(
                           children: [
-                            Icon(Icons.check_circle, color: Colors.green, size: 32),
+                            Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 32,
+                            ),
                             SizedBox(height: 8),
                             Text(
                               'Verification ready! You can now send OTP.',
@@ -484,11 +499,18 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       else
                         Column(
                           children: [
-                            const Icon(Icons.security, color: Colors.grey, size: 32),
+                            const Icon(
+                              Icons.security,
+                              color: Colors.grey,
+                              size: 32,
+                            ),
                             const SizedBox(height: 8),
                             const Text(
                               'Initializing security verification...',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
@@ -595,7 +617,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
               // Verify Button
               ElevatedButton(
-                onPressed: _isLoading || (kIsWeb && _webConfirmationResult == null)
+                onPressed:
+                    _isLoading || (kIsWeb && _webConfirmationResult == null)
                     ? null
                     : () => _verifyOTP(),
                 child: _isLoading

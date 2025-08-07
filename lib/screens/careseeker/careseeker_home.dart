@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../models/user_model.dart';
 import '../../utils/constants.dart';
 import '../auth/login_screen.dart';
 import 'careseeker_profile.dart';
@@ -17,6 +18,8 @@ class _CareseekerHomeState extends State<CareseekerHome> {
   final AuthService _authService = AuthService();
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  UserModel? _currentUser;
+  bool _isLoadingUser = true;
 
   // Pages to display based on bottom navigation
   late final List<Widget> _pages = [
@@ -25,6 +28,27 @@ class _CareseekerHomeState extends State<CareseekerHome> {
     const CareseekerProfileScreen(),
     const MyBookingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userData = await _authService.getCurrentUserData();
+      setState(() {
+        _currentUser = userData;
+        _isLoadingUser = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingUser = false;
+      });
+      print('Error loading user data: $e');
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -64,22 +88,31 @@ class _CareseekerHomeState extends State<CareseekerHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 30,
                     backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: AppConstants.primaryColor,
-                    ),
+                    backgroundImage: _currentUser?.profileImageUrl != null
+                        ? NetworkImage(_currentUser!.profileImageUrl!)
+                        : null,
+                    child: _currentUser?.profileImageUrl == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: AppConstants.primaryColor,
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'John Doe',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  Text(
+                    _isLoadingUser
+                        ? 'Loading...'
+                        : _currentUser?.fullName ?? 'User Name',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
                   ),
                   Text(
-                    'john.doe@example.com',
+                    _isLoadingUser
+                        ? 'Loading...'
+                        : _currentUser?.email ?? 'user@example.com',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 14,
@@ -134,21 +167,6 @@ class _CareseekerHomeState extends State<CareseekerHome> {
         ),
       ),
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: AppConstants.primaryColor,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Find Care'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Bookings',
-          ),
-        ],
-      ),
     );
   }
 }

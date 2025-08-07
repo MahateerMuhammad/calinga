@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import '../../utils/constants.dart';
+import '../../models/user_model.dart';
 import '../auth/login_screen.dart';
 import 'caregiver_profile.dart';
 import 'documents_screen.dart';
@@ -17,6 +17,8 @@ class _CaregiverHomeState extends State<CaregiverHome> {
   final AuthService _authService = AuthService();
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  UserModel? _currentUser;
+  bool _isLoadingUser = true;
 
   // Pages to display based on bottom navigation
   late final List<Widget> _pages = [
@@ -25,6 +27,27 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     const CaregiverProfileScreen(),
     const DocumentsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userData = await _authService.getCurrentUserData();
+      setState(() {
+        _currentUser = userData;
+        _isLoadingUser = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingUser = false;
+      });
+      print('Error loading user data: $e');
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -46,112 +69,237 @@ class _CaregiverHomeState extends State<CaregiverHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('CALiNGA Pro'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            _scaffoldKey.currentState?.openDrawer();
-          },
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.medical_services,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'CALiNGA Care Pro',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu, color: Colors.orange, size: 28),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+        ],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: AppConstants.primaryColor),
+            // Custom Header
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                ),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircleAvatar(
-                    radius: 30,
+                  CircleAvatar(
+                    radius: 40,
                     backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: AppConstants.primaryColor,
+                    backgroundImage: _currentUser?.profileImageUrl != null
+                        ? NetworkImage(_currentUser!.profileImageUrl!)
+                        : null,
+                    child: _currentUser?.profileImageUrl == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 50,
+                            color: Color(0xFF4A90E2),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isLoadingUser
+                        ? 'Loading...'
+                        : _currentUser?.fullName ?? 'User Name',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Jane Smith',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+                  const SizedBox(height: 4),
                   Text(
-                    'jane.smith@example.com',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
+                    _isLoadingUser
+                        ? 'Loading...'
+                        : _currentUser?.email ?? 'user@example.com',
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 14,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              selected: _selectedIndex == 0,
-              onTap: () {
-                _onItemTapped(0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('All Bookings'),
-              selected: _selectedIndex == 1,
-              onTap: () {
-                _onItemTapped(1);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              selected: _selectedIndex == 2,
-              onTap: () {
-                _onItemTapped(2);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.description),
-              title: const Text('Documents'),
-              selected: _selectedIndex == 3,
-              onTap: () {
-                _onItemTapped(3);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.exit_to_app),
-              title: const Text('Sign Out'),
-              onTap: _signOut,
+            // Menu Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      Icons.home_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Home',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 0,
+                    onTap: () {
+                      _onItemTapped(0);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.description_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'All Bookings',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 1,
+                    onTap: () {
+                      _onItemTapped(1);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.person_outline,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 2,
+                    onTap: () {
+                      _onItemTapped(2);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.folder_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Documents',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 3,
+                    onTap: () {
+                      _onItemTapped(3);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Divider(color: Colors.grey),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16, bottom: 8),
+                    child: Text(
+                      'Account',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.logout_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Sign Out',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    onTap: _signOut,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: AppConstants.primaryColor,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Bookings',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'Documents',
-          ),
-        ],
-      ),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              onPressed: () {
+                // Refresh functionality
+                setState(() {
+                  // Trigger refresh
+                });
+              },
+              backgroundColor: Colors.blue,
+              child: const Icon(Icons.refresh, color: Colors.white),
+            )
+          : null,
     );
   }
 }
@@ -163,100 +311,65 @@ class CaregiverHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Today\'s Bookings',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          // Today's Bookings Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Today\'s Bookings',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 40),
+
+          // Empty State
           Expanded(
-            child: ListView.builder(
-              itemCount: 3, // Sample data
-              itemBuilder: (context, index) {
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const CircleAvatar(child: Icon(Icons.person)),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Client ${index + 1}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                Text(
-                                  '${8 + index}:00 AM - ${10 + index}:00 AM',
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                '123 Main St, Anytown, CA 12345',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Duration: 2 hours',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () {},
-                              child: const Text('Details'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () {},
-                              child: const Text('Navigate'),
-                            ),
-                          ],
-                        ),
-                      ],
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'No bookings for today',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your schedule is clear for today',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

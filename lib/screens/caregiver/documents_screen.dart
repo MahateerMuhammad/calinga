@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import '../../utils/constants.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({Key? key}) : super(key: key);
@@ -11,161 +8,335 @@ class DocumentsScreen extends StatefulWidget {
 }
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
-  String _selectedRole = 'CNA'; // Default role
-  bool _isLoading = false;
-  final Map<String, File?> _uploadedDocuments = {};
+  String? _selectedRole;
+  bool _showDropdown = false;
+  final Map<String, bool> _uploadedDocuments = {};
 
-  // List of roles
-  final List<String> _roles = [
-    'CNA',
-    'LVN',
-    'RN',
-    'NP',
-    'PT',
-    'HHA',
-    'Private Caregiver',
+  // List of roles with full names
+  final List<Map<String, String>> _roles = [
+    {'value': 'CNA', 'name': 'CNA - Certified Nursing Assistant'},
+    {'value': 'LVN', 'name': 'LVN - Licensed Vocational Nurse'},
+    {'value': 'RN', 'name': 'RN - Registered Nurse'},
+    {'value': 'NP', 'name': 'NP - Nurse Practitioner'},
+    {'value': 'PT', 'name': 'PT - Physical Therapist'},
+    {'value': 'Private Caregiver', 'name': 'Private Caregiver'},
+    {'value': 'HHA', 'name': 'HHA - Home Health Aide'},
   ];
 
-  // Required documents per role
-  final Map<String, List<String>> _requiredDocuments = {
+  // Document lists for each role
+  final Map<String, List<Map<String, String>>> _roleDocuments = {
     'CNA': [
-      'California CNA Certificate (CDPH)',
-      'CDPH License Verification',
-      'Government ID / Real ID',
-      'Proof of Address',
-      'CPR/First Aid Cert',
-      'Live Scan / DOJ Clearance',
-      'Signed CALiNGA Independent Contractor Agreement',
+      {
+        'title': 'California CNA Certificate',
+        'subtitle': 'Issued by CDPH (California Department of Public Health)',
+        'key': 'cna_certificate',
+      },
+      {
+        'title': 'CDPH License Verification',
+        'subtitle': 'CDPH License Lookup Tool',
+        'key': 'cdph_verification',
+      },
+      {
+        'title': 'Government ID / Real ID',
+        'subtitle': 'Valid government-issued identification',
+        'key': 'government_id',
+      },
+      {
+        'title': 'Proof of Address',
+        'subtitle': 'Utility bill, lease agreement, or bank statement',
+        'key': 'proof_address',
+      },
+      {
+        'title': 'CPR/First Aid Certification',
+        'subtitle': 'Current CPR and First Aid certification',
+        'key': 'cpr_certification',
+      },
+      {
+        'title': 'Live Scan / DOJ Clearance',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'CALiNGA Independent Contractor Agreement',
+        'subtitle': 'Signed agreement document',
+        'key': 'contractor_agreement',
+      },
     ],
     'LVN': [
-      'California LVN License (BVNPT)',
-      'BVNPT License Lookup',
-      'Government ID / Real ID',
-      'CPR Cert',
-      'Live Scan / DOJ Clearance',
-      'TB Test Results',
-      'Proof of Work Authorization',
-      'Signed CALiNGA Independent Contractor Agreement',
+      {
+        'title': 'California LVN License',
+        'subtitle': 'Issued by BVNPT (Board of Vocational Nursing)',
+        'key': 'lvn_license',
+      },
+      {
+        'title': 'BVNPT License Lookup',
+        'subtitle': 'License verification from BVNPT',
+        'key': 'bvnpt_verification',
+      },
+      {
+        'title': 'Government ID / Real ID',
+        'subtitle': 'Valid government-issued identification',
+        'key': 'government_id',
+      },
+      {
+        'title': 'CPR Certification',
+        'subtitle': 'Current CPR certification',
+        'key': 'cpr_certification',
+      },
+      {
+        'title': 'Live Scan / DOJ Clearance',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'TB Test Results',
+        'subtitle': 'Tuberculosis test results (within 1 year)',
+        'key': 'tb_test',
+      },
+      {
+        'title': 'Proof of Work Authorization',
+        'subtitle': 'Work authorization documentation',
+        'key': 'work_authorization',
+      },
+      {
+        'title': 'CALiNGA Independent Contractor Agreement',
+        'subtitle': 'Signed agreement document',
+        'key': 'contractor_agreement',
+      },
     ],
     'RN': [
-      'California RN License (BRN)',
-      'BRN License Lookup',
-      'NPI Number',
-      'CPR Cert (BLS/ACLS)',
-      'Live Scan Background Check',
-      'TB Test',
-      'Government ID / Real ID',
-      'Signed CALiNGA Independent Contractor Agreement',
+      {
+        'title': 'California RN License',
+        'subtitle': 'Issued by BRN (Board of Registered Nursing)',
+        'key': 'rn_license',
+      },
+      {
+        'title': 'BRN License Lookup',
+        'subtitle': 'License verification from BRN',
+        'key': 'brn_verification',
+      },
+      {
+        'title': 'NPI Number',
+        'subtitle': 'National Provider Identifier',
+        'key': 'npi_number',
+      },
+      {
+        'title': 'CPR Certification (BLS/ACLS)',
+        'subtitle': 'Basic Life Support / Advanced Cardiac Life Support',
+        'key': 'cpr_bls_acls',
+      },
+      {
+        'title': 'Live Scan Background Check',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'TB Test',
+        'subtitle': 'Tuberculosis test results (within 1 year)',
+        'key': 'tb_test',
+      },
+      {
+        'title': 'Government ID / Real ID',
+        'subtitle': 'Valid government-issued identification',
+        'key': 'government_id',
+      },
+      {
+        'title': 'CALiNGA Independent Contractor Agreement',
+        'subtitle': 'Signed agreement document',
+        'key': 'contractor_agreement',
+      },
     ],
     'NP': [
-      'RN License',
-      'NP Certification',
-      'Furnishing Number',
-      'NPI Number',
-      'DEA Registration',
-      'Malpractice Insurance',
-      'CPR/BLS/ACLS Cert',
-      'Live Scan / DOJ Clearance',
-      'Government ID / Real ID',
-      'Signed CALiNGA Independent Contractor Agreement',
+      {
+        'title': 'RN License',
+        'subtitle': 'Registered Nurse license',
+        'key': 'rn_license',
+      },
+      {
+        'title': 'NP Certification',
+        'subtitle': 'Nurse Practitioner certification',
+        'key': 'np_certification',
+      },
+      {
+        'title': 'Furnishing Number',
+        'subtitle': 'California furnishing number',
+        'key': 'furnishing_number',
+      },
+      {
+        'title': 'NPI Number',
+        'subtitle': 'National Provider Identifier',
+        'key': 'npi_number',
+      },
+      {
+        'title': 'DEA Registration',
+        'subtitle': 'Drug Enforcement Administration registration',
+        'key': 'dea_registration',
+      },
+      {
+        'title': 'Malpractice Insurance',
+        'subtitle': 'Professional liability insurance',
+        'key': 'malpractice_insurance',
+      },
+      {
+        'title': 'CPR/BLS/ACLS Certification',
+        'subtitle': 'CPR, Basic Life Support, Advanced Cardiac Life Support',
+        'key': 'cpr_bls_acls',
+      },
+      {
+        'title': 'Live Scan / DOJ Clearance',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'Government ID / Real ID',
+        'subtitle': 'Valid government-issued identification',
+        'key': 'government_id',
+      },
+      {
+        'title': 'CALiNGA Independent Contractor Agreement',
+        'subtitle': 'Signed agreement document',
+        'key': 'contractor_agreement',
+      },
     ],
     'PT': [
-      'NPI Number',
-      'CPR Cert',
-      'Live Scan',
-      'Government ID / Real ID',
-      'Signed CALiNGA Independent Contractor Agreement',
+      {
+        'title': 'NPI Number',
+        'subtitle': 'National Provider Identifier',
+        'key': 'npi_number',
+      },
+      {
+        'title': 'CPR Certification',
+        'subtitle': 'Current CPR certification',
+        'key': 'cpr_certification',
+      },
+      {
+        'title': 'Live Scan',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'Government ID / Real ID',
+        'subtitle': 'Valid government-issued identification',
+        'key': 'government_id',
+      },
+      {
+        'title': 'CALiNGA Independent Contractor Agreement',
+        'subtitle': 'Signed agreement document',
+        'key': 'contractor_agreement',
+      },
     ],
     'Private Caregiver': [
-      'CPR/First Aid (optional)',
-      'Live Scan Fingerprinting',
-      'TB Test or Health Screening',
-      'Proof of Address',
-      'Work Authorization (if non-US citizen)',
+      {
+        'title': 'CPR/First Aid (Optional)',
+        'subtitle': 'CPR and First Aid certification',
+        'key': 'cpr_first_aid',
+      },
+      {
+        'title': 'Live Scan Fingerprinting',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'TB Test or Health Screening',
+        'subtitle': 'Tuberculosis test or health screening',
+        'key': 'tb_health_screening',
+      },
+      {
+        'title': 'Proof of Address',
+        'subtitle': 'Utility bill, lease agreement, or bank statement',
+        'key': 'proof_address',
+      },
+      {
+        'title': 'Work Authorization',
+        'subtitle': 'Required if non-US citizen',
+        'key': 'work_authorization',
+      },
     ],
     'HHA': [
-      'California HHA Certificate',
-      'CNA License (Proof)',
-      'Government ID / Real ID',
-      'Proof of Address',
-      'CPR/First Aid',
-      'Live Scan / DOJ Clearance',
-      'TB Test (within 1 year)',
-      'Signed CALiNGA Independent Contractor Agreement',
+      {
+        'title': 'California HHA Certificate',
+        'subtitle': 'Home Health Aide certificate',
+        'key': 'hha_certificate',
+      },
+      {
+        'title': 'CNA License (Proof)',
+        'subtitle': 'Certified Nursing Assistant license',
+        'key': 'cna_license_proof',
+      },
+      {
+        'title': 'Government ID / Real ID',
+        'subtitle': 'Valid government-issued identification',
+        'key': 'government_id',
+      },
+      {
+        'title': 'Proof of Address',
+        'subtitle': 'Utility bill, lease agreement, or bank statement',
+        'key': 'proof_address',
+      },
+      {
+        'title': 'CPR/First Aid',
+        'subtitle': 'CPR and First Aid certification',
+        'key': 'cpr_first_aid',
+      },
+      {
+        'title': 'Live Scan / DOJ Clearance',
+        'subtitle': 'Background check clearance',
+        'key': 'live_scan',
+      },
+      {
+        'title': 'TB Test',
+        'subtitle': 'Tuberculosis test (within 1 year)',
+        'key': 'tb_test',
+      },
+      {
+        'title': 'CALiNGA Independent Contractor Agreement',
+        'subtitle': 'Signed agreement document',
+        'key': 'contractor_agreement',
+      },
     ],
   };
 
   @override
   void initState() {
     super.initState();
-    _initializeDocumentMap();
+    // Initialize some documents as uploaded for demo purposes
+    _uploadedDocuments['cna_certificate'] = true;
+    _uploadedDocuments['government_id'] = true;
   }
 
-  void _initializeDocumentMap() {
-    // Initialize all documents as null (not uploaded)
-    for (final role in _roles) {
-      for (final document in _requiredDocuments[role]!) {
-        _uploadedDocuments['${role}_$document'] = null;
-      }
-    }
-  }
-
-  Future<void> _pickImage(String documentKey, ImageSource source) async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: source,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        setState(() {
-          _uploadedDocuments[documentKey] = File(image.path);
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
-    }
-  }
-
-  void _showImageSourceActionSheet(String documentKey) {
+  void _uploadDocument(String key) {
     showModalBottomSheet(
       context: context,
-      builder: (context) {
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
         return SafeArea(
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(Icons.photo_camera),
+                leading: const Icon(Icons.photo_camera, color: Colors.blue),
                 title: const Text('Take Photo'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _pickImage(documentKey, ImageSource.camera);
+                  _simulateUpload(key);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library),
+                leading: const Icon(Icons.photo_library, color: Colors.blue),
                 title: const Text('Choose from Gallery'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _pickImage(documentKey, ImageSource.gallery);
+                  _simulateUpload(key);
                 },
               ),
-              if (_uploadedDocuments[documentKey] != null)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Remove Document', style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _uploadedDocuments[documentKey] = null;
-                    });
-                  },
-                ),
+              ListTile(
+                leading: const Icon(Icons.cancel, color: Colors.red),
+                title: const Text('Cancel'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                },
+              ),
             ],
           ),
         );
@@ -173,164 +344,275 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Future<void> _uploadDocuments() async {
+  void _simulateUpload(String key) {
     setState(() {
-      _isLoading = true;
+      _uploadedDocuments[key] = true;
     });
 
-    try {
-      // In a real app, upload documents to Firebase Storage
-      // For now, just show success message
-      await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Documents uploaded successfully')),
-      );
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading documents: $e')),
-      );
-    }
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.medical_services,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Document uploaded successfully'),
+          ],
+        ),
+        backgroundColor: Colors.black87,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Documents'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Role Selection Dropdown
-                  DropdownButtonFormField<String>(
-                    value: _selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Role',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _roles.map((role) {
-                      return DropdownMenuItem<String>(
-                        value: role,
-                        child: Text(role),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRole = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 24),
+      backgroundColor: Colors.grey[50],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 40),
 
-                  // Required Documents Section
-                  Text(
-                    'Required Documents for $_selectedRole',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Document Upload List
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _requiredDocuments[_selectedRole]!.length,
-                    itemBuilder: (context, index) {
-                      final document = _requiredDocuments[_selectedRole]![index];
-                      final documentKey = '${_selectedRole}_$document';
-                      final isUploaded = _uploadedDocuments[documentKey] != null;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          title: Text(document),
-                          subtitle: isUploaded
-                              ? const Text(
-                                  'Document uploaded',
-                                  style: TextStyle(color: Colors.green),
-                                )
-                              : const Text(
-                                  'Tap to upload',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                          leading: isUploaded
-                              ? const Icon(Icons.check_circle, color: Colors.green)
-                              : const Icon(Icons.upload_file),
-                          trailing: isUploaded
-                              ? IconButton(
-                                  icon: const Icon(Icons.remove_red_eye),
-                                  onPressed: () {
-                                    // Show document preview
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => Dialog(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            AppBar(
-                                              title: Text(document),
-                                              automaticallyImplyLeading: false,
-                                              actions: [
-                                                IconButton(
-                                                  icon: const Icon(Icons.close),
-                                                  onPressed: () => Navigator.pop(context),
-                                                ),
-                                              ],
-                                            ),
-                                            Image.file(
-                                              _uploadedDocuments[documentKey]!,
-                                              fit: BoxFit.contain,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                )
-                              : null,
-                          onTap: () => _showImageSourceActionSheet(documentKey),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Upload Button
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _uploadDocuments,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Upload Documents'),
-                  ),
-                ],
+            // Title
+            const Text(
+              'CALiNGApro Compliance Documents',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2E5BBA), // Original Blue
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Subtitle
+            Text(
+              'Please select your role and upload the required documents to get qualified as a CALiNGApro.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Select Your Role Section
+            const Text(
+              'Select Your Role:',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2E5BBA), // Original Blue
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Role Dropdown
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showDropdown = !_showDropdown;
+                });
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _selectedRole == null
+                          ? 'Select Role Type'
+                          : _roles.firstWhere(
+                              (role) => role['value'] == _selectedRole,
+                            )['name']!,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _selectedRole == null
+                            ? Colors.grey[600]
+                            : Colors.black87,
+                      ),
+                    ),
+                    Icon(
+                      _showDropdown
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: Colors.grey[600],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Dropdown Options
+            if (_showDropdown)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: _roles.map((role) {
+                    return ListTile(
+                      title: Text(
+                        role['name']!,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          _selectedRole = role['value'];
+                          _showDropdown = false;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+
+            const SizedBox(height: 32),
+
+            // Required Documents Section
+            if (_selectedRole != null &&
+                _roleDocuments.containsKey(_selectedRole)) ...[
+              const Text(
+                'Required Documents:',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2E5BBA), // Original Blue
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Document List
+              ..._roleDocuments[_selectedRole]!.map((doc) {
+                final isUploaded = _uploadedDocuments[doc['key']] == true;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (isUploaded)
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 8),
+                                    child: const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 20,
+                                    ),
+                                  ),
+                                Expanded(
+                                  child: Text(
+                                    doc['title']!,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2E5BBA), // Original Blue
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (doc['subtitle']!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                doc['subtitle']!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (isUploaded) {
+                            // View document
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Viewing document...'),
+                              ),
+                            );
+                          } else {
+                            _uploadDocument(doc['key']!);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue, // Original Blue
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          isUploaded ? 'View Document' : 'Upload Document',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
