@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'utils/constants.dart';
 import 'utils/theme.dart';
@@ -11,6 +12,8 @@ import 'screens/careseeker/careseeker_home.dart';
 import 'screens/caregiver/caregiver_home.dart';
 import 'services/auth_service.dart';
 import 'services/web_auth_service.dart';
+import 'providers/availability_provider.dart';
+import 'providers/booking_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,11 +40,17 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      theme: AppTheme.lightTheme,
-      home: const AuthWrapper(),
-      debugShowCheckedModeBanner: false,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AvailabilityProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
+      ],
+      child: MaterialApp(
+        title: AppConstants.appName,
+        theme: AppTheme.lightTheme,
+        home: const AuthWrapper(),
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 }

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../../providers/availability_provider.dart';
+import '../../providers/booking_provider.dart';
+import '../../widgets/availability_toggle.dart';
+import '../../widgets/booking_card.dart';
 import '../auth/login_screen.dart';
 import 'caregiver_profile.dart';
 import 'documents_screen.dart';
@@ -32,6 +37,18 @@ class _CaregiverHomeState extends State<CaregiverHome> {
   void initState() {
     super.initState();
     _loadUserData();
+    _initializeProviders();
+  }
+
+  Future<void> _initializeProviders() async {
+    // Initialize availability provider
+    final availabilityProvider = Provider.of<AvailabilityProvider>(context, listen: false);
+    await availabilityProvider.initializeAvailability();
+
+    // Initialize booking provider
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    bookingProvider.setUserRole('CALiNGApro');
+    await bookingProvider.initialize();
   }
 
   Future<void> _loadUserData() async {
@@ -290,11 +307,13 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       body: _pages[_selectedIndex],
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
-              onPressed: () {
+              onPressed: () async {
                 // Refresh functionality
-                setState(() {
-                  // Trigger refresh
-                });
+                final availabilityProvider = Provider.of<AvailabilityProvider>(context, listen: false);
+                final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+                
+                await availabilityProvider.refreshAvailability();
+                await bookingProvider.refresh();
               },
               backgroundColor: Colors.blue,
               child: const Icon(Icons.refresh, color: Colors.white),
@@ -310,70 +329,279 @@ class CaregiverHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Today's Bookings Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Consumer2<AvailabilityProvider, BookingProvider>(
+      builder: (context, availabilityProvider, bookingProvider, child) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Welcome Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Welcome back!',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          availabilityProvider.statusDisplayText,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: availabilityProvider.isAvailable ? Colors.green[700] : Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const AvailabilityToggle(),
+                ],
+              ),
+              
+              const SizedBox(height: 24),
+
+              // Quick Stats
+              _buildQuickStats(bookingProvider),
+              
+              const SizedBox(height: 24),
+
+              // Today's Bookings Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Today\'s Bookings',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.calendar_today,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+
+              // Today's Bookings List
+              _buildTodayBookings(bookingProvider),
+              
+              const SizedBox(height: 24),
+
+              // Recent Activity
               const Text(
-                'Today\'s Bookings',
+                'Recent Activity',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.calendar_today,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
+              
+              const SizedBox(height: 16),
+
+              _buildRecentActivity(bookingProvider),
             ],
           ),
-          const SizedBox(height: 40),
+        );
+      },
+    );
+  }
 
-          // Empty State
+  Widget _buildQuickStats(BookingProvider bookingProvider) {
+    final stats = bookingProvider.getBookingStats();
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'No bookings for today',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your schedule is clear for today',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
+            child: _buildStatItem(
+              'Total Bookings',
+              stats['totalBookings'].toString(),
+              Icons.calendar_today,
+              Colors.blue,
+            ),
+          ),
+          Expanded(
+            child: _buildStatItem(
+              'Completed',
+              stats['completedBookings'].toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
+          ),
+          Expanded(
+            child: _buildStatItem(
+              'Earnings',
+              '\$${stats['totalEarnings'].toStringAsFixed(0)}',
+              Icons.attach_money,
+              Colors.orange,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTodayBookings(BookingProvider bookingProvider) {
+    final todayBookings = bookingProvider.upcomingBookings
+        .where((booking) {
+          final bookingDate = booking.schedule['date'] is DateTime
+              ? booking.schedule['date'] as DateTime
+              : DateTime.now();
+          final today = DateTime.now();
+          return bookingDate.year == today.year &&
+                 bookingDate.month == today.month &&
+                 bookingDate.day == today.day;
+        })
+        .toList();
+
+    if (todayBookings.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 48,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No bookings for today',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your schedule is clear for today',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: todayBookings.map((booking) => BookingCard(
+        booking: booking,
+        onTap: () {
+          // TODO: Navigate to booking details
+        },
+        onCancel: () {
+          // TODO: Show cancel confirmation
+        },
+        isCompact: true,
+      )).toList(),
+    );
+  }
+
+  Widget _buildRecentActivity(BookingProvider bookingProvider) {
+    final recentBookings = bookingProvider.bookings.take(3).toList();
+
+    if (recentBookings.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.history,
+              size: 32,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No recent activity',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: recentBookings.map((booking) => CompactBookingCard(
+        booking: booking,
+        onTap: () {
+          // TODO: Navigate to booking details
+        },
+      )).toList(),
     );
   }
 }
