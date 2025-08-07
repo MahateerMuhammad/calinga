@@ -1,21 +1,22 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
 import '../../utils/constants.dart';
 
 class CareseekerProfileScreen extends StatefulWidget {
-  const CareseekerProfileScreen({Key? key}) : super(key: key);
+  const CareseekerProfileScreen({super.key});
 
   @override
-  State<CareseekerProfileScreen> createState() => _CareseekerProfileScreenState();
+  State<CareseekerProfileScreen> createState() =>
+      _CareseekerProfileScreenState();
 }
 
 class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final AuthService _authService = AuthService();
-  
+
   // Form controllers
   final _fullNameController = TextEditingController();
   final _ageController = TextEditingController();
@@ -23,7 +24,7 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
   final _phoneController = TextEditingController();
   final _emergencyContactController = TextEditingController();
   final _medicalConditionsController = TextEditingController();
-  
+
   bool _isLoading = false;
   File? _profileImage;
   UserModel? _userModel;
@@ -82,9 +83,9 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
         _isLoading = false;
       });
       // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
     }
   }
 
@@ -104,9 +105,9 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
     }
   }
 
@@ -136,7 +137,10 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
               if (_profileImage != null)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                  title: const Text(
+                    'Remove Photo',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.of(context).pop();
                     setState(() {
@@ -163,7 +167,9 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
     try {
       // In a real app, update user data in Firestore
       // For now, just show success message
-      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+      await Future.delayed(
+        const Duration(seconds: 1),
+      ); // Simulate network delay
 
       if (!mounted) return;
 
@@ -178,18 +184,16 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-      ),
+      appBar: AppBar(title: const Text('Profile')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

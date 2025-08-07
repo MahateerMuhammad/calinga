@@ -1,7 +1,8 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
-import '../../utils/constants.dart';
 import '../auth/login_screen.dart';
 import 'careseeker_profile.dart';
 import 'find_care_screen.dart';
@@ -46,7 +47,7 @@ class _CareseekerHomeState extends State<CareseekerHome> {
       setState(() {
         _isLoadingUser = false;
       });
-      print('Error loading user data: $e');
+      log('Error loading user data: $e');
     }
   }
 
