@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "124822117175",
+    "project_id": "callinga-d6829",
+    "storage_bucket": "callinga-d6829.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124822117175:android:ef2f245424805a21cfd8b2",
+        "android_client_info": {
+          "package_name": "com.company.callinga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkdh_qa7KZ_qVIeEWE1HLWeeVlHNR9vJo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124822117175:android:afca6a6044911f79cfd8b2",
+        "android_client_info": {
+          "package_name": "com.example.calinga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkdh_qa7KZ_qVIeEWE1HLWeeVlHNR9vJo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
