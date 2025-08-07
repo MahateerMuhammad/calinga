@@ -80,16 +80,24 @@ class _CareseekerHomeState extends State<CareseekerHome> {
         ),
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: AppConstants.primaryColor),
+            // Custom Header
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                ),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircleAvatar(
-                    radius: 30,
+                    radius: 40,
                     backgroundColor: Colors.white,
                     backgroundImage: _currentUser?.profileImageUrl != null
                         ? NetworkImage(_currentUser!.profileImageUrl!)
@@ -97,71 +105,154 @@ class _CareseekerHomeState extends State<CareseekerHome> {
                     child: _currentUser?.profileImageUrl == null
                         ? const Icon(
                             Icons.person,
-                            size: 40,
-                            color: AppConstants.primaryColor,
+                            size: 50,
+                            color: Color(0xFF4A90E2),
                           )
                         : null,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   Text(
                     _isLoadingUser
                         ? 'Loading...'
                         : _currentUser?.fullName ?? 'User Name',
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     _isLoadingUser
                         ? 'Loading...'
                         : _currentUser?.email ?? 'user@example.com',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 14,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              selected: _selectedIndex == 0,
-              onTap: () {
-                _onItemTapped(0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.search),
-              title: const Text('Find Care'),
-              selected: _selectedIndex == 1,
-              onTap: () {
-                _onItemTapped(1);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              selected: _selectedIndex == 2,
-              onTap: () {
-                _onItemTapped(2);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('My Bookings'),
-              selected: _selectedIndex == 3,
-              onTap: () {
-                _onItemTapped(3);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.exit_to_app),
-              title: const Text('Sign Out'),
-              onTap: _signOut,
+            // Menu Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      Icons.home_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Home',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 0,
+                    onTap: () {
+                      _onItemTapped(0);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.search_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Find Care',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 1,
+                    onTap: () {
+                      _onItemTapped(1);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.person_outline,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 2,
+                    onTap: () {
+                      _onItemTapped(2);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.calendar_today_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'My Bookings',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    selected: _selectedIndex == 3,
+                    onTap: () {
+                      _onItemTapped(3);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Divider(color: Colors.grey),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16, bottom: 8),
+                    child: Text(
+                      'Account',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.logout_outlined,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                    title: const Text(
+                      'Sign Out',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    onTap: _signOut,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

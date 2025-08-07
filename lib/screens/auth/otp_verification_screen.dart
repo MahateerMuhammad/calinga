@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../utils/constants.dart';
 import '../careseeker/careseeker_home.dart';
 import '../caregiver/caregiver_home.dart';
+import 'dart:async';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -34,10 +35,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   bool _isLoading = false;
   bool _recaptchaLoaded = false;
+  bool _otpSent = false;
   String _errorMessage = '';
+  String _successMessage = '';
   String _verificationId = '';
   int _resendToken = 0;
   int _remainingTime = 60;
+  Timer? _timer;
   ConfirmationResult? _webConfirmationResult;
   RecaptchaVerifier? _recaptchaVerifier;
 
@@ -50,6 +54,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   @override
   void dispose() {
     _otpController.dispose();
+    _timer?.cancel();
     _recaptchaVerifier?.clear();
     super.dispose();
   }
@@ -126,9 +131,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         _tryAlternativeWebAuth();
       }
     } else {
-      // For mobile platforms, directly send OTP
-      _sendOTP();
-      _startCountdown();
+      // For mobile platforms, wait for user to click Send OTP button
+      setState(() {
+        _isLoading = false;
+        _recaptchaLoaded = true; // Allow sending OTP on mobile
+      });
     }
   }
 
@@ -164,12 +171,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _startCountdown() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted && _remainingTime > 0) {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingTime > 0) {
         setState(() {
           _remainingTime--;
         });
-        _startCountdown();
+      } else {
+        timer.cancel();
       }
     });
   }
@@ -215,6 +224,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
         setState(() {
           _isLoading = false;
+          _otpSent = true;
+          _successMessage = 'OTP sent to ${widget.phoneNumber}';
+          _remainingTime = 60;
         });
 
         _startCountdown();
@@ -255,7 +267,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 _resendToken = resendToken;
               }
               _isLoading = false;
+              _otpSent = true;
+              _successMessage = 'OTP sent to ${widget.phoneNumber}';
+              _remainingTime = 60;
             });
+            _startCountdown();
           },
           codeAutoRetrievalTimeout: (String verificationId) {
             setState(() {
@@ -421,6 +437,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       setState(() {
         _remainingTime = 60;
         _recaptchaLoaded = false;
+        _otpSent = false;
+        _errorMessage = '';
+        _successMessage = '';
       });
 
       if (kIsWeb) {
@@ -428,7 +447,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         _recaptchaVerifier?.clear();
         _initializeRecaptcha();
       } else {
-        _startCountdown();
         _sendOTP();
       }
     }
@@ -437,202 +455,310 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('OTP Verification')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.sms, size: 64, color: AppConstants.primaryColor),
-              const SizedBox(height: 24),
-
-              Text(
-                'Verification Code',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF4A90E2), // Lighter blue at top
+              Color(0xFF1976D2), // Primary blue at bottom
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32.0,
+                vertical: 24.0,
               ),
-              const SizedBox(height: 16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight:
+                      MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom -
+                      48,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
 
-              Text(
-                'We have sent a verification code to ${widget.phoneNumber}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
+                    // Logo
+                    Image.asset(AppConstants.logoPath, height: 100, width: 100),
+                    const SizedBox(height: 32),
 
-              // reCAPTCHA container for web
-              if (kIsWeb)
-                Container(
-                  height: 120,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_isLoading && !_recaptchaLoaded)
-                        const CircularProgressIndicator()
-                      else if (_recaptchaLoaded)
-                        const Column(
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 32,
+                    // Title
+                    const Text(
+                      'Phone Verification',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Subtitle
+                    Text(
+                      'We\'ll send an OTP to ${widget.phoneNumber}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Show different content based on OTP sent state
+                    if (!_otpSent) ...[
+                      // Send OTP Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  if (kIsWeb && !_recaptchaLoaded) {
+                                    _initializeRecaptcha();
+                                  } else {
+                                    _sendOTP();
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.2,
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Verification ready! You can now send OTP.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w500,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(
+                                color: Colors.white,
+                                width: 1,
                               ),
-                              textAlign: TextAlign.center,
                             ),
-                          ],
-                        )
-                      else
-                        Column(
+                            elevation: 0,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Send OTP',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ] else ...[
+                      // OTP Input Field
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: PinCodeTextField(
+                          appContext: context,
+                          length: 6,
+                          controller: _otpController,
+                          enabled: !_isLoading,
+                          pinTheme: PinTheme(
+                            shape: PinCodeFieldShape.box,
+                            borderRadius: BorderRadius.circular(12),
+                            fieldHeight: 56,
+                            fieldWidth: 40,
+                            activeFillColor: Colors.transparent,
+                            inactiveFillColor: Colors.transparent,
+                            selectedFillColor: Colors.transparent,
+                            activeColor: Colors.white,
+                            inactiveColor: Colors.white.withValues(alpha: 0.7),
+                            selectedColor: Colors.white,
+                            disabledColor: Colors.white.withValues(alpha: 0.3),
+                            borderWidth: 2,
+                          ),
+                          enableActiveFill: false,
+                          keyboardType: TextInputType.number,
+                          textStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          hintCharacter: '0',
+                          hintStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            fontSize: 20,
+                          ),
+                          onCompleted: (value) {
+                            _verifyOTP();
+                          },
+                          onChanged: (value) {
+                            if (_errorMessage.isNotEmpty) {
+                              setState(() {
+                                _errorMessage = '';
+                              });
+                            }
+                          },
+                        ),
+                      ),
+
+                      // Verify Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : () => _verifyOTP(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.2,
+                            ),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(
+                                color: Colors.white,
+                                width: 1,
+                              ),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Verify and Complete Registration',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Resend OTP
+                      if (_remainingTime > 0) ...[
+                        Text(
+                          'Resend OTP in ${_remainingTime}s',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'OTP sent to ${widget.phoneNumber}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ] else ...[
+                        TextButton(
+                          onPressed: _resendOTP,
+                          child: const Text(
+                            'Resend OTP',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // Success Message
+                    if (_successMessage.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.2),
+                          border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.5),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
                           children: [
                             const Icon(
-                              Icons.security,
-                              color: Colors.grey,
-                              size: 32,
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 20,
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Initializing security verification...',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _successMessage,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: _initializeRecaptcha,
-                              child: const Text('Try Again'),
                             ),
                           ],
                         ),
-                    ],
-                  ),
-                ),
+                      ),
 
-              // Send OTP Button (for web)
-              if (kIsWeb && _recaptchaLoaded && _webConfirmationResult == null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _sendOTP,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Send OTP'),
-                  ),
-                ),
-
-              // OTP Input Field
-              PinCodeTextField(
-                appContext: context,
-                length: 6,
-                controller: _otpController,
-                enabled: kIsWeb ? (_webConfirmationResult != null) : true,
-                pinTheme: PinTheme(
-                  shape: PinCodeFieldShape.box,
-                  borderRadius: BorderRadius.circular(8),
-                  fieldHeight: 50,
-                  fieldWidth: 40,
-                  activeFillColor: Colors.white,
-                  inactiveFillColor: Colors.white,
-                  selectedFillColor: Colors.white,
-                  activeColor: AppConstants.primaryColor,
-                  inactiveColor: Colors.grey,
-                  selectedColor: AppConstants.primaryColor,
-                  disabledColor: Colors.grey.shade300,
-                ),
-                enableActiveFill: true,
-                keyboardType: TextInputType.number,
-                onCompleted: (value) {
-                  if (kIsWeb && _webConfirmationResult != null) {
-                    _verifyOTP();
-                  } else if (!kIsWeb) {
-                    _verifyOTP();
-                  }
-                },
-                onChanged: (value) {
-                  if (_errorMessage.isNotEmpty) {
-                    setState(() {
-                      _errorMessage = '';
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Resend OTP
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Didn't receive the code?"),
-                  TextButton(
-                    onPressed: _remainingTime == 0 ? _resendOTP : null,
-                    child: Text(
-                      _remainingTime > 0
-                          ? 'Resend in $_remainingTime s'
-                          : 'Resend OTP',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Error Message
-              if (_errorMessage.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _errorMessage,
-                    style: TextStyle(color: Colors.red.shade700),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-              // Verify Button
-              ElevatedButton(
-                onPressed:
-                    _isLoading || (kIsWeb && _webConfirmationResult == null)
-                    ? null
-                    : () => _verifyOTP(),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                    // Error Message
+                    if (_errorMessage.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.2),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.5),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      )
-                    : const Text('Verify OTP'),
+                        child: Row(
+                          children: [
+                            Image.asset(
+                              AppConstants.logoPath,
+                              height: 20,
+                              width: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),

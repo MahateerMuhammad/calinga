@@ -320,36 +320,63 @@ class _SignupScreenState extends State<SignupScreen> {
                     Row(
                       children: [
                         // CareSeeker Radio
-                        Radio<String>(
-                          value: AppConstants.roleCareseeker,
-                          groupValue: _selectedRole,
-                          activeColor: AppConstants.primaryColor,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedRole = value!;
-                            });
-                          },
+                        Expanded(
+                          flex: 5,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Radio<String>(
+                                  value: AppConstants.roleCareseeker,
+                                  groupValue: _selectedRole,
+                                  activeColor: AppConstants.primaryColor,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedRole = value!;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  "I'm a Careseeker",
+                                  style: TextStyle(fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const Text(
-                          "I'm a Careseeker",
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        const Spacer(),
 
                         // CALiNGApro Radio
-                        Radio<String>(
-                          value: AppConstants.roleCaregiver,
-                          groupValue: _selectedRole,
-                          activeColor: AppConstants.primaryColor,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedRole = value!;
-                            });
-                          },
-                        ),
-                        const Text(
-                          "I'm a CALiNGApro",
-                          style: TextStyle(fontSize: 16),
+                        Expanded(
+                          flex: 6,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Radio<String>(
+                                  value: AppConstants.roleCaregiver,
+                                  groupValue: _selectedRole,
+                                  activeColor: AppConstants.primaryColor,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedRole = value!;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  "I'm a CALiNGApro",
+                                  style: TextStyle(fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
