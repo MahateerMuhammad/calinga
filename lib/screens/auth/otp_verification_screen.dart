@@ -34,7 +34,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   final TextEditingController _otpController = TextEditingController();
 
   bool _isLoading = false;
-  bool _recaptchaLoaded = false;
+  bool _recaptchaLoaded = true; // disable recaptcha requirement
   bool _otpSent = false;
   String _errorMessage = '';
   String _successMessage = '';
@@ -43,12 +43,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   int _remainingTime = 60;
   Timer? _timer;
   ConfirmationResult? _webConfirmationResult;
-  RecaptchaVerifier? _recaptchaVerifier;
+  RecaptchaVerifier? _recaptchaVerifier; // kept for typing, not used on web
 
   @override
   void initState() {
     super.initState();
-    _initializeRecaptcha();
+    // Skip recaptcha setup entirely
   }
 
   @override
@@ -59,116 +59,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     super.dispose();
   }
 
-  Future<void> _initializeRecaptcha() async {
-    if (kIsWeb) {
-      try {
-        setState(() {
-          _isLoading = true;
-          _errorMessage = '';
-        });
+  Future<void> _initializeRecaptcha() async {}
 
-        // Wait longer for the DOM and Firebase to be ready
-        await Future.delayed(const Duration(milliseconds: 1500));
-
-        // Clear any existing reCAPTCHA
-        if (_recaptchaVerifier != null) {
-          try {
-            _recaptchaVerifier!.clear();
-          } catch (e) {
-            debugPrint('Error clearing previous reCAPTCHA: $e');
-          }
-        }
-
-        _recaptchaVerifier = RecaptchaVerifier(
-          auth: FirebaseAuthPlatform.instance,
-          container: 'recaptcha-container',
-          size: RecaptchaVerifierSize.compact, // Use compact reCAPTCHA
-          theme: RecaptchaVerifierTheme.light,
-          onSuccess: () {
-            debugPrint('reCAPTCHA verification successful');
-            setState(() {
-              _recaptchaLoaded = true;
-              _isLoading = false;
-            });
-          },
-          onError: (FirebaseAuthException error) {
-            debugPrint('reCAPTCHA verification failed: ${error.message}');
-            setState(() {
-              _errorMessage =
-                  'reCAPTCHA verification failed. Please try again.';
-              _isLoading = false;
-            });
-          },
-          onExpired: () {
-            debugPrint('reCAPTCHA verification expired');
-            setState(() {
-              _errorMessage =
-                  'reCAPTCHA verification expired. Please try again.';
-              _recaptchaLoaded = false;
-              _isLoading = false;
-            });
-          },
-        );
-
-        // Try to render the reCAPTCHA
-        await _recaptchaVerifier!.render();
-
-        setState(() {
-          _isLoading = false;
-          _recaptchaLoaded = true;
-        });
-
-        debugPrint('reCAPTCHA initialized successfully');
-      } catch (e) {
-        debugPrint('Error initializing reCAPTCHA: $e');
-        setState(() {
-          _errorMessage =
-              'reCAPTCHA initialization failed. Trying alternative method...';
-          _isLoading = false;
-        });
-
-        // Try alternative approach without reCAPTCHA container
-        _tryAlternativeWebAuth();
-      }
-    } else {
-      // For mobile platforms, wait for user to click Send OTP button
-      setState(() {
-        _isLoading = false;
-        _recaptchaLoaded = true; // Allow sending OTP on mobile
-      });
-    }
-  }
-
-  Future<void> _tryAlternativeWebAuth() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = 'Trying alternative verification method...';
-      });
-
-      // Create a new reCAPTCHA verifier without container
-      _recaptchaVerifier = RecaptchaVerifier(
-        auth: FirebaseAuthPlatform.instance,
-        size: RecaptchaVerifierSize.compact,
-        theme: RecaptchaVerifierTheme.light,
-      );
-
-      setState(() {
-        _recaptchaLoaded = true;
-        _isLoading = false;
-        _errorMessage = '';
-      });
-
-      debugPrint('Alternative reCAPTCHA method initialized');
-    } catch (e) {
-      debugPrint('Alternative method also failed: $e');
-      setState(() {
-        _errorMessage =
-            'Verification setup failed. Please refresh the page and try again.';
-        _isLoading = false;
-      });
-    }
-  }
+  // ignore: unused_element
+  Future<void> _tryAlternativeWebAuth() async {}
 
   void _startCountdown() {
     _timer?.cancel();
@@ -213,14 +107,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       String formattedPhone = _formatPhoneNumber(widget.phoneNumber);
 
       if (kIsWeb) {
-        // Web platform - use signInWithPhoneNumber with reCAPTCHA
-        if (_recaptchaVerifier == null) {
-          throw Exception('reCAPTCHA verifier not initialized');
-        }
-
+        // Web platform - use invisible safety net: let Firebase handle internally
         debugPrint('Sending OTP to: $formattedPhone');
         _webConfirmationResult = await FirebaseAuth.instance
-            .signInWithPhoneNumber(formattedPhone, _recaptchaVerifier!);
+            .signInWithPhoneNumber(formattedPhone);
 
         setState(() {
           _isLoading = false;
@@ -443,9 +333,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       });
 
       if (kIsWeb) {
-        // Clear and reinitialize reCAPTCHA for web
-        _recaptchaVerifier?.clear();
-        _initializeRecaptcha();
+        _sendOTP();
       } else {
         _sendOTP();
       }

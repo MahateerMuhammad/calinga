@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +10,6 @@ import 'screens/auth/login_screen.dart';
 import 'screens/careseeker/careseeker_home.dart';
 import 'screens/caregiver/caregiver_home.dart';
 import 'services/auth_service.dart';
-import 'services/web_auth_service.dart';
 import 'providers/availability_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/location_provider.dart';
@@ -24,11 +22,6 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     debugPrint('Firebase initialized successfully');
-
-    // Configure web-specific auth settings
-    if (kIsWeb) {
-      await WebAuthService.configureRecaptcha();
-    }
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }

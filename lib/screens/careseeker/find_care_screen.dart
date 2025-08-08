@@ -9,7 +9,7 @@ import 'booking_form_screen.dart';
 import '../../utils/location_permissions.dart';
 
 class FindCareScreen extends StatefulWidget {
-  const FindCareScreen({Key? key}) : super(key: key);
+  const FindCareScreen({super.key});
 
   @override
   State<FindCareScreen> createState() => _FindCareScreenState();
