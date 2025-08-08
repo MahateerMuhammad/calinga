@@ -14,6 +14,7 @@ import 'services/auth_service.dart';
 import 'services/web_auth_service.dart';
 import 'providers/availability_provider.dart';
 import 'providers/booking_provider.dart';
+import 'providers/location_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,7 @@ class MainApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AvailabilityProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider(create: (_) => LocationProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

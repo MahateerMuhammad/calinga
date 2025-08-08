@@ -2,10 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/availability_model.dart';
+import '../models/location_model.dart';
+import '../services/google_maps_service.dart';
 
 class AvailabilityProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleMapsService _mapsService = GoogleMapsService();
 
   AvailabilityModel? _availability;
   bool _isLoading = false;
@@ -75,11 +78,26 @@ class AvailabilityProvider with ChangeNotifier {
       // Update local state
       _availability = newAvailability;
 
-      // Update Firestore
+      // Update Firestore with availability and location
+      Map<String, dynamic> updateData = newAvailability.toJson();
+      
+      // Add location data if available
+      try {
+        LocationModel? currentLocation = await _mapsService.getCurrentLocation();
+        if (currentLocation != null) {
+          updateData['location'] = currentLocation.toGeoPoint();
+          updateData['address'] = currentLocation.address;
+          updateData['geohash'] = currentLocation.generateGeohash();
+          updateData['lastLocationUpdate'] = FieldValue.serverTimestamp();
+        }
+      } catch (e) {
+        debugPrint('Error updating location: $e');
+      }
+
       await _firestore
           .collection('caregivers')
           .doc(_auth.currentUser!.uid)
-          .update(newAvailability.toJson());
+          .update(updateData);
 
       notifyListeners();
     } catch (e) {

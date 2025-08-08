@@ -1,10 +1,10 @@
 import 'dart:math';
+import 'package:geolocator/geolocator.dart';
 
 class DistanceCalculator {
   static const double _earthRadius = 6371; // Earth's radius in kilometers
 
-  /// Calculate distance between two points using Haversine formula
-  /// Returns distance in kilometers
+  // Calculate distance between two points using Haversine formula
   static double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     // Convert degrees to radians
     double lat1Rad = _degreesToRadians(lat1);
@@ -25,85 +25,82 @@ class DistanceCalculator {
     return distance;
   }
 
-  /// Convert degrees to radians
+  // Calculate distance using Geolocator (more accurate)
+  static Future<double> calculateDistanceAccurate(double lat1, double lon1, double lat2, double lon2) async {
+    try {
+      return await Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000; // Convert to km
+    } catch (e) {
+      // Fallback to Haversine formula
+      return calculateDistance(lat1, lon1, lat2, lon2);
+    }
+  }
+
+  // Convert degrees to radians
   static double _degreesToRadians(double degrees) {
     return degrees * (pi / 180);
   }
 
-  /// Convert radians to degrees
+  // Convert radians to degrees
   static double _radiansToDegrees(double radians) {
     return radians * (180 / pi);
   }
 
-  /// Convert kilometers to miles
+  // Convert kilometers to miles
   static double kilometersToMiles(double kilometers) {
     return kilometers * 0.621371;
   }
 
-  /// Convert miles to kilometers
+  // Convert miles to kilometers
   static double milesToKilometers(double miles) {
     return miles * 1.60934;
   }
 
-  /// Format distance for display
-  static String formatDistance(double distanceInKm) {
-    if (distanceInKm < 1) {
-      return '${(distanceInKm * 1000).round()} m';
-    } else if (distanceInKm < 10) {
-      return '${distanceInKm.toStringAsFixed(1)} km';
+  // Format distance for display
+  static String formatDistance(double distanceInKm, {bool useMiles = true}) {
+    if (useMiles) {
+      double miles = kilometersToMiles(distanceInKm);
+      if (miles < 1) {
+        return '${(miles * 5280).round()} ft'; // Convert to feet
+      } else if (miles < 10) {
+        return '${miles.toStringAsFixed(1)} mi';
+      } else {
+        return '${miles.round()} mi';
+      }
     } else {
-      return '${distanceInKm.round()} km';
+      if (distanceInKm < 1) {
+        return '${(distanceInKm * 1000).round()} m';
+      } else if (distanceInKm < 10) {
+        return '${distanceInKm.toStringAsFixed(1)} km';
+      } else {
+        return '${distanceInKm.round()} km';
+      }
     }
   }
 
-  /// Format distance in miles for display
-  static String formatDistanceMiles(double distanceInMiles) {
-    if (distanceInMiles < 1) {
-      return '${(distanceInMiles * 5280).round()} ft';
-    } else if (distanceInMiles < 10) {
-      return '${distanceInMiles.toStringAsFixed(1)} mi';
-    } else {
-      return '${distanceInMiles.round()} mi';
+  // Estimate travel time (rough calculation)
+  static int estimateTravelTime(double distanceInKm, {String mode = 'driving'}) {
+    double averageSpeed; // km/h
+    
+    switch (mode.toLowerCase()) {
+      case 'walking':
+        averageSpeed = 5.0; // 5 km/h walking speed
+        break;
+      case 'cycling':
+        averageSpeed = 15.0; // 15 km/h cycling speed
+        break;
+      case 'transit':
+        averageSpeed = 25.0; // 25 km/h public transit
+        break;
+      case 'driving':
+      default:
+        averageSpeed = 40.0; // 40 km/h average driving speed in city
+        break;
     }
+    
+    return (distanceInKm / averageSpeed * 60).round(); // Convert to minutes
   }
 
-  /// Check if a location is within a specified radius
-  static bool isWithinRadius(
-    double centerLat,
-    double centerLon,
-    double targetLat,
-    double targetLon,
-    double radiusInKm,
-  ) {
-    double distance = calculateDistance(centerLat, centerLon, targetLat, targetLon);
-    return distance <= radiusInKm;
-  }
-
-  /// Calculate bounding box for a given center point and radius
-  /// Returns [minLat, maxLat, minLon, maxLon]
-  static List<double> calculateBoundingBox(
-    double centerLat,
-    double centerLon,
-    double radiusInKm,
-  ) {
-    double latDelta = radiusInKm / _earthRadius * (180 / pi);
-    double lonDelta = radiusInKm / _earthRadius * (180 / pi) / cos(_degreesToRadians(centerLat));
-
-    return [
-      centerLat - latDelta, // minLat
-      centerLat + latDelta, // maxLat
-      centerLon - lonDelta, // minLon
-      centerLon + lonDelta, // maxLon
-    ];
-  }
-
-  /// Calculate estimated travel time based on distance
-  /// Returns time in minutes
-  static int calculateTravelTime(double distanceInKm, {double speedKmh = 30}) {
-    return (distanceInKm / speedKmh * 60).round();
-  }
-
-  /// Format travel time for display
+  // Format travel time
   static String formatTravelTime(int minutes) {
     if (minutes < 60) {
       return '$minutes min';
@@ -118,8 +115,19 @@ class DistanceCalculator {
     }
   }
 
-  /// Calculate bearing between two points
-  /// Returns bearing in degrees (0-360)
+  // Check if location is within radius
+  static bool isWithinRadius(
+    double centerLat,
+    double centerLon,
+    double targetLat,
+    double targetLon,
+    double radiusInKm,
+  ) {
+    double distance = calculateDistance(centerLat, centerLon, targetLat, targetLon);
+    return distance <= radiusInKm;
+  }
+
+  // Calculate bearing between two points
   static double calculateBearing(double lat1, double lon1, double lat2, double lon2) {
     double lat1Rad = _degreesToRadians(lat1);
     double lat2Rad = _degreesToRadians(lat2);
@@ -127,32 +135,63 @@ class DistanceCalculator {
 
     double y = sin(deltaLon) * cos(lat2Rad);
     double x = cos(lat1Rad) * sin(lat2Rad) - sin(lat1Rad) * cos(lat2Rad) * cos(deltaLon);
+    
     double bearing = atan2(y, x);
-
-    return (_radiansToDegrees(bearing) + 360) % 360;
+    return _radiansToDegrees(bearing);
   }
 
-  /// Calculate midpoint between two points
-  /// Returns [midLat, midLon]
-  static List<double> calculateMidpoint(double lat1, double lon1, double lat2, double lon2) {
-    double lat1Rad = _degreesToRadians(lat1);
-    double lon1Rad = _degreesToRadians(lon1);
-    double lat2Rad = _degreesToRadians(lat2);
-    double lon2Rad = _degreesToRadians(lon2);
+  // Calculate destination point given start point, bearing, and distance
+  static Map<String, double> calculateDestination(
+    double startLat,
+    double startLon,
+    double bearing,
+    double distanceInKm,
+  ) {
+    double angularDistance = distanceInKm / _earthRadius;
+    double bearingRad = _degreesToRadians(bearing);
+    double lat1Rad = _degreesToRadians(startLat);
+    double lon1Rad = _degreesToRadians(startLon);
 
-    double Bx = cos(lat2Rad) * cos(lon2Rad - lon1Rad);
-    double By = cos(lat2Rad) * sin(lon2Rad - lon1Rad);
-
-    double midLat = atan2(
-      sin(lat1Rad) + sin(lat2Rad),
-      sqrt((cos(lat1Rad) + Bx) * (cos(lat1Rad) + Bx) + By * By),
+    double lat2Rad = asin(
+      sin(lat1Rad) * cos(angularDistance) +
+      cos(lat1Rad) * sin(angularDistance) * cos(bearingRad)
     );
-    double midLon = lon1Rad + atan2(By, cos(lat1Rad) + Bx);
 
-    return [_radiansToDegrees(midLat), _radiansToDegrees(midLon)];
+    double lon2Rad = lon1Rad + atan2(
+      sin(bearingRad) * sin(angularDistance) * cos(lat1Rad),
+      cos(angularDistance) - sin(lat1Rad) * sin(lat2Rad)
+    );
+
+    return {
+      'latitude': _radiansToDegrees(lat2Rad),
+      'longitude': _radiansToDegrees(lon2Rad),
+    };
   }
 
-  /// Validate coordinates
+  // Calculate area of a circle with given radius
+  static double calculateCircleArea(double radiusInKm) {
+    return pi * radiusInKm * radiusInKm;
+  }
+
+  // Calculate bounding box for a given center point and radius
+  static Map<String, double> calculateBoundingBox(
+    double centerLat,
+    double centerLon,
+    double radiusInKm,
+  ) {
+    // Convert radius from km to degrees (approximate)
+    double latDelta = radiusInKm / 111.0; // 1 degree ≈ 111 km
+    double lonDelta = radiusInKm / (111.0 * cos(_degreesToRadians(centerLat)));
+
+    return {
+      'minLat': centerLat - latDelta,
+      'maxLat': centerLat + latDelta,
+      'minLon': centerLon - lonDelta,
+      'maxLon': centerLon + lonDelta,
+    };
+  }
+
+  // Validate coordinates
   static bool isValidLatitude(double lat) {
     return lat >= -90 && lat <= 90;
   }
@@ -165,35 +204,38 @@ class DistanceCalculator {
     return isValidLatitude(lat) && isValidLongitude(lon);
   }
 
-  /// Calculate area of a polygon defined by coordinates
-  /// Uses shoelace formula
-  static double calculatePolygonArea(List<List<double>> coordinates) {
-    if (coordinates.length < 3) return 0;
+  // Calculate distance between multiple points (route distance)
+  static double calculateRouteDistance(List<Map<String, double>> points) {
+    if (points.length < 2) return 0.0;
 
-    double area = 0;
-    int j = coordinates.length - 1;
-
-    for (int i = 0; i < coordinates.length; i++) {
-      area += (coordinates[j][0] + coordinates[i][0]) * (coordinates[j][1] - coordinates[i][1]);
-      j = i;
+    double totalDistance = 0.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      double lat1 = points[i]['latitude']!;
+      double lon1 = points[i]['longitude']!;
+      double lat2 = points[i + 1]['latitude']!;
+      double lon2 = points[i + 1]['longitude']!;
+      
+      totalDistance += calculateDistance(lat1, lon1, lat2, lon2);
     }
-
-    return (area / 2).abs();
+    
+    return totalDistance;
   }
 
-  /// Calculate centroid of a polygon
-  /// Returns [centroidLat, centroidLon]
-  static List<double> calculatePolygonCentroid(List<List<double>> coordinates) {
-    if (coordinates.isEmpty) return [0, 0];
+  // Get distance category for display
+  static String getDistanceCategory(double distanceInKm) {
+    if (distanceInKm < 1) return 'Very Close';
+    if (distanceInKm < 5) return 'Close';
+    if (distanceInKm < 10) return 'Nearby';
+    if (distanceInKm < 25) return 'Moderate';
+    return 'Far';
+  }
 
-    double centroidLat = 0;
-    double centroidLon = 0;
-
-    for (List<double> coord in coordinates) {
-      centroidLat += coord[0];
-      centroidLon += coord[1];
-    }
-
-    return [centroidLat / coordinates.length, centroidLon / coordinates.length];
+  // Get distance category color
+  static int getDistanceCategoryColor(double distanceInKm) {
+    if (distanceInKm < 1) return 0xFF4CAF50; // Green
+    if (distanceInKm < 5) return 0xFF8BC34A; // Light Green
+    if (distanceInKm < 10) return 0xFFFFC107; // Amber
+    if (distanceInKm < 25) return 0xFFFF9800; // Orange
+    return 0xFFF44336; // Red
   }
 } 

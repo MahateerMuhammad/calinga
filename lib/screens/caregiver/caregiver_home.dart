@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../../providers/availability_provider.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/location_provider.dart';
 import '../../widgets/availability_toggle.dart';
 import '../../widgets/booking_card.dart';
 import '../auth/login_screen.dart';
@@ -41,6 +42,10 @@ class _CaregiverHomeState extends State<CaregiverHome> {
   }
 
   Future<void> _initializeProviders() async {
+    // Initialize location provider
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    await locationProvider.initializeLocation();
+
     // Initialize availability provider
     final availabilityProvider = Provider.of<AvailabilityProvider>(context, listen: false);
     await availabilityProvider.initializeAvailability();
