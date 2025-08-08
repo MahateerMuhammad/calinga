@@ -47,7 +47,8 @@ class GoogleMapsService {
         );
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks[0];
-          address = '${place.street}, ${place.locality}, ${place.administrativeArea}';
+          address =
+              '${place.street}, ${place.locality}, ${place.administrativeArea}';
         }
       } catch (e) {
         debugPrint('Error getting address: $e');
@@ -113,7 +114,7 @@ class GoogleMapsService {
     try {
       // Query caregivers within radius
       Query query = _firestore.collection('caregivers');
-      
+
       // Filter by availability if specified
       if (isAvailable != null) {
         query = query.where('isAvailable', isEqualTo: isAvailable);
@@ -137,13 +138,15 @@ class GoogleMapsService {
 
       for (DocumentSnapshot doc in snapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        
+
         // Check if caregiver has location data
         if (data['location'] != null) {
           GeoPoint geoPoint = data['location'];
           double distance = _calculateDistance(
-            centerLat, centerLon, 
-            geoPoint.latitude, geoPoint.longitude
+            centerLat,
+            centerLon,
+            geoPoint.latitude,
+            geoPoint.longitude,
           );
 
           // Only include caregivers within radius
@@ -170,8 +173,10 @@ class GoogleMapsService {
       }
 
       // Sort by distance
-      caregivers.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
-      
+      caregivers.sort(
+        (a, b) => (a['distance'] as double).compareTo(b['distance'] as double),
+      );
+
       return caregivers;
     } catch (e) {
       debugPrint('Error getting nearby caregivers: $e');
@@ -180,7 +185,10 @@ class GoogleMapsService {
   }
 
   // Update caregiver location
-  Future<void> updateCaregiverLocation(String caregiverId, LocationModel location) async {
+  Future<void> updateCaregiverLocation(
+    String caregiverId,
+    LocationModel location,
+  ) async {
     try {
       await _firestore.collection('caregivers').doc(caregiverId).update({
         'location': location.toGeoPoint(),
@@ -194,27 +202,104 @@ class GoogleMapsService {
     }
   }
 
-  // Stream caregiver location updates
-  Stream<LocationModel?> streamCaregiverLocation(String caregiverId) {
-    return _firestore
-        .collection('caregivers')
-        .doc(caregiverId)
-        .snapshots()
-        .map((doc) {
-      if (doc.exists && doc.data()?['location'] != null) {
-        GeoPoint geoPoint = doc.data()!['location'];
-        return LocationModel.fromGeoPoint(
-          geoPoint,
-          address: doc.data()!['address'],
+  // Migrate caregiver documents to use Firebase Auth UID as document ID
+  Future<void> migrateCaregiverIds() async {
+    try {
+      print('DEBUG: Starting caregiver ID migration...');
+      final caregivers = await _firestore.collection('caregivers').get();
+
+      for (final doc in caregivers.docs) {
+        final data = doc.data();
+        final userUid = data['uid'] ?? data['userId']; // Look for UID field
+
+        print('DEBUG: Caregiver ${doc.id} - UserUID: $userUid');
+
+        if (userUid != null && userUid != doc.id) {
+          // Create new document with correct ID (Firebase Auth UID)
+          await _firestore.collection('caregivers').doc(userUid).set(data);
+          // Delete old document
+          await doc.reference.delete();
+          print('DEBUG: Migrated caregiver from ${doc.id} to $userUid');
+        }
+      }
+
+      print('DEBUG: Caregiver migration completed');
+    } catch (e) {
+      print('DEBUG: Caregiver migration failed: $e');
+      throw Exception('Failed to migrate caregiver IDs: $e');
+    }
+  }
+
+  // Ensure current caregiver document uses Firebase Auth UID
+  Future<void> ensureCaregiverDocumentId(String firebaseAuthUid) async {
+    try {
+      // Check if document already exists with correct ID
+      final correctDoc = await _firestore
+          .collection('caregivers')
+          .doc(firebaseAuthUid)
+          .get();
+
+      if (!correctDoc.exists) {
+        // Look for caregiver document with this UID in the data
+        final querySnapshot = await _firestore
+            .collection('caregivers')
+            .where('uid', isEqualTo: firebaseAuthUid)
+            .limit(1)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          final oldDoc = querySnapshot.docs.first;
+          final data = oldDoc.data();
+
+          // Create new document with Firebase Auth UID as document ID
+          await _firestore
+              .collection('caregivers')
+              .doc(firebaseAuthUid)
+              .set(data);
+          // Delete old document
+          await oldDoc.reference.delete();
+
+          print(
+            'DEBUG: Moved caregiver document to correct ID: $firebaseAuthUid',
+          );
+        } else {
+          print('DEBUG: No caregiver document found for UID: $firebaseAuthUid');
+        }
+      } else {
+        print(
+          'DEBUG: Caregiver document already has correct ID: $firebaseAuthUid',
         );
       }
-      return null;
-    });
+    } catch (e) {
+      print('DEBUG: Error ensuring caregiver document ID: $e');
+    }
+  }
+
+  // Stream caregiver location updates
+  Stream<LocationModel?> streamCaregiverLocation(String caregiverId) {
+    return _firestore.collection('caregivers').doc(caregiverId).snapshots().map(
+      (doc) {
+        if (doc.exists && doc.data()?['location'] != null) {
+          GeoPoint geoPoint = doc.data()!['location'];
+          return LocationModel.fromGeoPoint(
+            geoPoint,
+            address: doc.data()!['address'],
+          );
+        }
+        return null;
+      },
+    );
   }
 
   // Calculate distance between two points
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000; // Convert to km
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) /
+        1000; // Convert to km
   }
 
   // Format distance for display
@@ -256,9 +341,7 @@ class GoogleMapsService {
         markerColor = isAvailable ? Colors.red : Colors.grey;
     }
 
-    return BitmapDescriptor.defaultMarkerWithHue(
-      _colorToHue(markerColor),
-    );
+    return BitmapDescriptor.defaultMarkerWithHue(_colorToHue(markerColor));
   }
 
   // Convert color to hue for marker
@@ -359,4 +442,4 @@ class GoogleMapsService {
       }
     }
   }
-} 
+}

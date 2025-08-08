@@ -43,15 +43,24 @@ class _CaregiverHomeState extends State<CaregiverHome> {
 
   Future<void> _initializeProviders() async {
     // Initialize location provider
-    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    final locationProvider = Provider.of<LocationProvider>(
+      context,
+      listen: false,
+    );
     await locationProvider.initializeLocation();
 
     // Initialize availability provider
-    final availabilityProvider = Provider.of<AvailabilityProvider>(context, listen: false);
+    final availabilityProvider = Provider.of<AvailabilityProvider>(
+      context,
+      listen: false,
+    );
     await availabilityProvider.initializeAvailability();
 
     // Initialize booking provider
-    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    final bookingProvider = Provider.of<BookingProvider>(
+      context,
+      listen: false,
+    );
     bookingProvider.setUserRole('CALiNGApro');
     await bookingProvider.initialize();
   }
@@ -314,9 +323,15 @@ class _CaregiverHomeState extends State<CaregiverHome> {
           ? FloatingActionButton(
               onPressed: () async {
                 // Refresh functionality
-                final availabilityProvider = Provider.of<AvailabilityProvider>(context, listen: false);
-                final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
-                
+                final availabilityProvider = Provider.of<AvailabilityProvider>(
+                  context,
+                  listen: false,
+                );
+                final bookingProvider = Provider.of<BookingProvider>(
+                  context,
+                  listen: false,
+                );
+
                 await availabilityProvider.refreshAvailability();
                 await bookingProvider.refresh();
               },
@@ -362,7 +377,9 @@ class CaregiverHomePage extends StatelessWidget {
                           availabilityProvider.statusDisplayText,
                           style: TextStyle(
                             fontSize: 16,
-                            color: availabilityProvider.isAvailable ? Colors.green[700] : Colors.grey[600],
+                            color: availabilityProvider.isAvailable
+                                ? Colors.green[700]
+                                : Colors.grey[600],
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -372,12 +389,12 @@ class CaregiverHomePage extends StatelessWidget {
                   const AvailabilityToggle(),
                 ],
               ),
-              
+
               const SizedBox(height: 24),
 
               // Quick Stats
               _buildQuickStats(bookingProvider),
-              
+
               const SizedBox(height: 24),
 
               // Today's Bookings Header
@@ -406,12 +423,12 @@ class CaregiverHomePage extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
 
               // Today's Bookings List
               _buildTodayBookings(bookingProvider),
-              
+
               const SizedBox(height: 24),
 
               // Recent Activity
@@ -423,7 +440,7 @@ class CaregiverHomePage extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
-              
+
               const SizedBox(height: 16),
 
               _buildRecentActivity(bookingProvider),
@@ -436,7 +453,7 @@ class CaregiverHomePage extends StatelessWidget {
 
   Widget _buildQuickStats(BookingProvider bookingProvider) {
     final stats = bookingProvider.getBookingStats();
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -462,6 +479,14 @@ class CaregiverHomePage extends StatelessWidget {
           ),
           Expanded(
             child: _buildStatItem(
+              'Today\'s Bookings',
+              stats['todaysBookings'].toString(),
+              Icons.today,
+              Colors.purple,
+            ),
+          ),
+          Expanded(
+            child: _buildStatItem(
               'Completed',
               stats['completedBookings'].toString(),
               Icons.check_circle,
@@ -481,7 +506,12 @@ class CaregiverHomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
@@ -497,10 +527,7 @@ class CaregiverHomePage extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           textAlign: TextAlign.center,
         ),
       ],
@@ -508,17 +535,7 @@ class CaregiverHomePage extends StatelessWidget {
   }
 
   Widget _buildTodayBookings(BookingProvider bookingProvider) {
-    final todayBookings = bookingProvider.upcomingBookings
-        .where((booking) {
-          final bookingDate = booking.schedule['date'] is DateTime
-              ? booking.schedule['date'] as DateTime
-              : DateTime.now();
-          final today = DateTime.now();
-          return bookingDate.year == today.year &&
-                 bookingDate.month == today.month &&
-                 bookingDate.day == today.day;
-        })
-        .toList();
+    final todayBookings = bookingProvider.getTodaysBookings();
 
     if (todayBookings.isEmpty) {
       return Container(
@@ -556,16 +573,20 @@ class CaregiverHomePage extends StatelessWidget {
     }
 
     return Column(
-      children: todayBookings.map((booking) => BookingCard(
-        booking: booking,
-        onTap: () {
-          // TODO: Navigate to booking details
-        },
-        onCancel: () {
-          // TODO: Show cancel confirmation
-        },
-        isCompact: true,
-      )).toList(),
+      children: todayBookings
+          .map(
+            (booking) => BookingCard(
+              booking: booking,
+              onTap: () {
+                // TODO: Navigate to booking details
+              },
+              onCancel: () {
+                // TODO: Show cancel confirmation
+              },
+              isCompact: true,
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -582,18 +603,11 @@ class CaregiverHomePage extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(
-              Icons.history,
-              size: 32,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.history, size: 32, color: Colors.grey[400]),
             const SizedBox(height: 12),
             Text(
               'No recent activity',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -601,12 +615,16 @@ class CaregiverHomePage extends StatelessWidget {
     }
 
     return Column(
-      children: recentBookings.map((booking) => CompactBookingCard(
-        booking: booking,
-        onTap: () {
-          // TODO: Navigate to booking details
-        },
-      )).toList(),
+      children: recentBookings
+          .map(
+            (booking) => CompactBookingCard(
+              booking: booking,
+              onTap: () {
+                // TODO: Navigate to booking details
+              },
+            ),
+          )
+          .toList(),
     );
   }
 }

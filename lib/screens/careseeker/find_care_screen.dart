@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
 import '../../providers/location_provider.dart';
 import '../../services/google_maps_service.dart';
-import '../../widgets/google_map_widget.dart';
 import '../../models/location_model.dart';
 import 'booking_form_screen.dart';
 import '../../utils/location_permissions.dart';
+import 'careseeker_home.dart';
 
 class FindCareScreen extends StatefulWidget {
   const FindCareScreen({super.key});
@@ -23,7 +23,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
   double _maxDistance = 10.0;
   double _minRate = 0.0;
   double _maxRate = 100.0;
-  bool _showMap = true; // default to map view
   bool _isLoading = false;
   String? _error;
 
@@ -125,10 +124,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
     }
   }
 
-  void _onMarkerTap(Map<String, dynamic> caregiver) {
-    _showCaregiverDetails(caregiver);
-  }
-
   void _showCaregiverDetails(Map<String, dynamic> caregiver) {
     showModalBottomSheet(
       context: context,
@@ -139,136 +134,284 @@ class _FindCareScreenState extends State<FindCareScreen> {
   }
 
   Widget _buildCaregiverDetailsSheet(Map<String, dynamic> caregiver) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.grey.shade200,
-                        child: const Icon(
-                          Icons.person,
-                          size: 30,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              caregiver['name'] ?? 'Unknown',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              caregiver['role'] ?? 'Caregiver',
-                              style: TextStyle(
-                                color: AppConstants.primaryColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}',
-                                ),
-                                const SizedBox(width: 12),
-                                const Icon(
-                                  Icons.location_on,
-                                  color: Colors.grey,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  caregiver['formattedDistance'] ?? 'Unknown',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      const Icon(Icons.attach_money, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Text(
-                        '\$${caregiver['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hour',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Close'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    BookingFormScreen(caregiver: caregiver),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppConstants.primaryColor,
-                          ),
-                          child: const Text('Book Now'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-        ],
+
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Section
+                    Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.blue[200]!,
+                              width: 3,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.blue[50],
+                            backgroundImage: caregiver['profileImage'] != null
+                                ? NetworkImage(caregiver['profileImage'])
+                                : null,
+                            child: caregiver['profileImage'] == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.blue[600],
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                caregiver['name'] ?? 'Unknown',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                caregiver['role'] ?? 'Caregiver',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.blue[600],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.star,
+                                    color: Colors.orange[600],
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Icon(
+                                    Icons.location_on,
+                                    color: Colors.grey[500],
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    caregiver['formattedDistance'] ?? 'Unknown',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: caregiver['isAvailable'] == true
+                                ? Colors.green[100]
+                                : Colors.orange[100],
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Text(
+                            caregiver['isAvailable'] == true
+                                ? 'Available'
+                                : 'Busy',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: caregiver['isAvailable'] == true
+                                  ? Colors.green[700]
+                                  : Colors.orange[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Rate Section
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.attach_money,
+                            color: Colors.green[700],
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '\$${caregiver['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hour',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Specializations
+                    if (caregiver['specializations'] != null &&
+                        (caregiver['specializations'] as List).isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Text(
+                        'Specializations',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children:
+                            (caregiver['specializations'] as List<dynamic>)
+                                .map(
+                                  (spec) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[50],
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.blue[200]!,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      spec.toString(),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.blue[700],
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ],
+
+                    const SizedBox(height: 32),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: Colors.grey[400]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Close',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: caregiver['isAvailable'] == true
+                                ? () {
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => BookingFormScreen(
+                                          caregiver: caregiver,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Book Now',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -284,125 +427,231 @@ class _FindCareScreenState extends State<FindCareScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Find Care'),
-        actions: [
-          IconButton(
-            icon: Icon(_showMap ? Icons.list : Icons.map),
-            onPressed: () => setState(() => _showMap = !_showMap),
-          ),
-        ],
+        backgroundColor: const Color(0xFF4A90E2),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const CareseekerHome()),
+              (route) => false,
+            );
+          },
+        ),
       ),
+      backgroundColor: Colors.grey[50],
       body: Column(
         children: [
           // Search and Filter Section
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Column(
               children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search caregivers...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _searchCaregivers();
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                // Search Bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  onChanged: (value) => _searchCaregivers(),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search caregivers by name, role, or specialization...',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.search, color: Colors.orange[600]),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                _searchCaregivers();
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {}); // Rebuild to show/hide clear button
+                      _searchCaregivers();
+                    },
+                  ),
                 ),
                 const SizedBox(height: 16),
+
+                // Filters Row
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedRole,
-                        decoration: const InputDecoration(
-                          labelText: 'Role',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
-                        items: _roles
-                            .map(
-                              (role) => DropdownMenuItem<String>(
-                                value: role,
-                                child: Text(role),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedRole = value!;
-                          });
-                          _searchCaregivers();
-                        },
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedRole,
+                          decoration: const InputDecoration(
+                            labelText: 'Care Role',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          isExpanded: true, // Fix overflow issue
+                          items: _roles
+                              .map(
+                                (role) => DropdownMenuItem<String>(
+                                  value: role,
+                                  child: Text(
+                                    role,
+                                    overflow: TextOverflow
+                                        .ellipsis, // Handle long text
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedRole = value!;
+                            });
+                            _searchCaregivers();
+                          },
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Max Distance'),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Slider(
-                                  value: _maxDistance,
-                                  min: 1,
-                                  max: 50,
-                                  divisions: 49,
-                                  label: '${_maxDistance.round()} mi',
-                                  onChanged: (value) =>
-                                      setState(() => _maxDistance = value),
-                                  onChangeEnd: (value) => _searchCaregivers(),
-                                ),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Max Distance',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
                               ),
-                              Text('${_maxDistance.round()} mi'),
-                            ],
-                          ),
-                        ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Slider(
+                                    value: _maxDistance,
+                                    min: 1,
+                                    max: 50,
+                                    divisions: 49,
+                                    activeColor: Colors.orange[600],
+                                    onChanged: (value) =>
+                                        setState(() => _maxDistance = value),
+                                    onChangeEnd: (value) => _searchCaregivers(),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${_maxDistance.round()} mi',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange[800],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+
+                // Rate Range Row
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Min Rate (\$)',
-                          border: OutlineInputBorder(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          _minRate = double.tryParse(value) ?? 0.0;
-                        },
-                        onSubmitted: (value) => _searchCaregivers(),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Min Rate (\$)',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            _minRate = double.tryParse(value) ?? 0.0;
+                          },
+                          onSubmitted: (value) => _searchCaregivers(),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Max Rate (\$)',
-                          border: OutlineInputBorder(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          _maxRate = double.tryParse(value) ?? 100.0;
-                        },
-                        onSubmitted: (value) => _searchCaregivers(),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Max Rate (\$)',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            _maxRate = double.tryParse(value) ?? 100.0;
+                          },
+                          onSubmitted: (value) => _searchCaregivers(),
+                        ),
                       ),
                     ),
                   ],
@@ -410,37 +659,82 @@ class _FindCareScreenState extends State<FindCareScreen> {
               ],
             ),
           ),
+          // Error Message
           if (_error != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: Colors.red.shade50,
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red.shade700),
-                  const SizedBox(width: 8),
+                  Icon(Icons.error_outline, color: Colors.red.shade700),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(color: Colors.red.shade700),
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+          // Results Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${_caregivers.length} caregivers found',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Icon(Icons.people, color: Colors.blue[600], size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_caregivers.length} caregivers found',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
                 ),
                 if (_currentLocation != null)
-                  Text(
-                    'Near ${_currentLocation!.address?.split(',').first ?? 'your location'}',
-                    style: TextStyle(color: Colors.grey[600]),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.blue[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Near ${_currentLocation!.address?.split(',').first ?? 'your location'}',
+                          style: TextStyle(
+                            color: Colors.blue[600],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -448,38 +742,41 @@ class _FindCareScreenState extends State<FindCareScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : (_showMap ? _buildMapView() : _buildListView()),
+                : _buildListView(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMapView() {
-    if (_currentLocation == null)
-      return const Center(child: Text('Location not available'));
-
-    return GoogleMapWidget(
-      initialLat: _currentLocation!.latitude,
-      initialLng: _currentLocation!.longitude,
-      initialZoom: 12.0,
-      markers: _caregivers,
-      onMarkerTap: _onMarkerTap,
-      showControls: true,
-    );
-  }
-
   Widget _buildListView() {
     if (_caregivers.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 24),
             Text(
-              'No caregivers found matching your criteria',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              'No caregivers found',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try adjusting your search criteria or filters',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -487,133 +784,255 @@ class _FindCareScreenState extends State<FindCareScreen> {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: _caregivers.length,
       itemBuilder: (context, index) {
         final caregiver = _caregivers[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: InkWell(
             onTap: () => _showCaregiverDetails(caregiver),
+            borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.all(20),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.grey.shade200,
-                    child: const Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          caregiver['name'] ?? 'Unknown',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Profile Picture
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.blue[100]!,
+                            width: 2,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          caregiver['role'] ?? 'Caregiver',
-                          style: TextStyle(
-                            color: AppConstants.primaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: CircleAvatar(
+                          radius: 32,
+                          backgroundColor: Colors.blue[50],
+                          backgroundImage: caregiver['profileImage'] != null
+                              ? NetworkImage(caregiver['profileImage'])
+                              : null,
+                          child: caregiver['profileImage'] == null
+                              ? Icon(
+                                  Icons.person,
+                                  size: 32,
+                                  color: Colors.blue[600],
+                                )
+                              : null,
                         ),
-                        const SizedBox(height: 8),
-                        Row(
+                      ),
+                      const SizedBox(width: 16),
+
+                      // Caregiver Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 16,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    caregiver['name'] ?? 'Unknown',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: caregiver['isAvailable'] == true
+                                        ? Colors.green[100]
+                                        : Colors.orange[100],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    caregiver['isAvailable'] == true
+                                        ? 'Available'
+                                        : 'Busy',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: caregiver['isAvailable'] == true
+                                          ? Colors.green[700]
+                                          : Colors.orange[700],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              '${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}',
+                              caregiver['role'] ?? 'Caregiver',
+                              style: TextStyle(
+                                color: Colors.blue[600],
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            const Icon(
-                              Icons.location_on,
-                              color: Colors.grey,
-                              size: 16,
+                            const SizedBox(height: 8),
+
+                            // Rating and Distance Row
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  color: Colors.orange[600],
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Icon(
+                                  Icons.location_on,
+                                  color: Colors.grey[500],
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  caregiver['formattedDistance'] ?? 'Unknown',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 4),
-                            Text(caregiver['formattedDistance'] ?? 'Unknown'),
+                            const SizedBox(height: 8),
+
+                            // Hourly Rate
+                            Text(
+                              '\$${caregiver['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hour',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.green[700],
+                              ),
+                            ),
+
+                            // Specializations
+                            if (caregiver['specializations'] != null &&
+                                (caregiver['specializations'] as List)
+                                    .isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children:
+                                    (caregiver['specializations']
+                                            as List<dynamic>)
+                                        .take(3)
+                                        .map(
+                                          (spec) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue[50],
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.blue[200]!,
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              spec.toString(),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: Colors.blue[700],
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                              ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '\$${caregiver['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hour',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        if (caregiver['specializations'] != null &&
-                            (caregiver['specializations'] as List)
-                                .isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 2,
-                            children:
-                                (caregiver['specializations'] as List<dynamic>)
-                                    .take(3)
-                                    .map(
-                                      (spec) => Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppConstants.primaryColor
-                                              .withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          spec.toString(),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: AppConstants.primaryColor,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => _showCaregiverDetails(caregiver),
-                        child: const Text('View'),
                       ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  BookingFormScreen(caregiver: caregiver),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _showCaregiverDetails(caregiver),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: Colors.blue[600]!),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConstants.primaryColor,
+                          ),
+                          child: Text(
+                            'View Profile',
+                            style: TextStyle(
+                              color: Colors.blue[600],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        child: const Text('Book'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: caregiver['isAvailable'] == true
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => BookingFormScreen(
+                                        caregiver: caregiver,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Book Now',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
                       ),
                     ],
                   ),
