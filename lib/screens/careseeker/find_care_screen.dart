@@ -5,6 +5,8 @@ import '../../providers/location_provider.dart';
 import '../../services/google_maps_service.dart';
 import '../../widgets/google_map_widget.dart';
 import '../../models/location_model.dart';
+import 'booking_form_screen.dart';
+import '../../utils/location_permissions.dart';
 
 class FindCareScreen extends StatefulWidget {
   const FindCareScreen({Key? key}) : super(key: key);
@@ -16,18 +18,18 @@ class FindCareScreen extends StatefulWidget {
 class _FindCareScreenState extends State<FindCareScreen> {
   final _searchController = TextEditingController();
   final GoogleMapsService _mapsService = GoogleMapsService();
-  
+
   String _selectedRole = 'All';
   double _maxDistance = 10.0;
   double _minRate = 0.0;
   double _maxRate = 100.0;
-  bool _showMap = false;
+  bool _showMap = true; // default to map view
   bool _isLoading = false;
   String? _error;
-  
+
   List<Map<String, dynamic>> _caregivers = [];
   LocationModel? _currentLocation;
-  
+
   final List<String> _roles = [
     'All',
     'CNA',
@@ -46,15 +48,29 @@ class _FindCareScreenState extends State<FindCareScreen> {
   }
 
   Future<void> _initializeLocation() async {
-    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    final locationProvider = Provider.of<LocationProvider>(
+      context,
+      listen: false,
+    );
+    // Ensure friendly permission flow
+    final hasPermission = await LocationPermissions.requestPermissionWithDialog(
+      context,
+    );
+    if (!hasPermission) {
+      setState(() {
+        _error = 'Location permission required to find nearby caregivers';
+      });
+      return;
+    }
+
     await locationProvider.initializeLocation();
-    
+
     if (locationProvider.hasValidLocation) {
       _currentLocation = locationProvider.currentLocation;
       await _searchCaregivers();
     } else {
       setState(() {
-        _error = 'Location permission required to find nearby caregivers';
+        _error = 'Unable to get your location';
       });
     }
   }
@@ -71,31 +87,29 @@ class _FindCareScreenState extends State<FindCareScreen> {
       final caregivers = await _mapsService.getNearbyCaregivers(
         centerLat: _currentLocation!.latitude,
         centerLon: _currentLocation!.longitude,
-        radiusInKm: _maxDistance * 1.60934, // Convert miles to km
+        radiusInKm: _maxDistance * 1.60934,
         role: _selectedRole == 'All' ? null : _selectedRole,
         minRate: _minRate > 0 ? _minRate : null,
         maxRate: _maxRate < 100 ? _maxRate : null,
         isAvailable: true,
       );
 
-      // Apply additional filters
       final filteredCaregivers = caregivers.where((caregiver) {
-        // Filter by search text
         if (_searchController.text.isNotEmpty) {
           final searchText = _searchController.text.toLowerCase();
           final name = caregiver['name'].toString().toLowerCase();
           final role = caregiver['role'].toString().toLowerCase();
-          final specializations = (caregiver['specializations'] as List<dynamic>?)
-              ?.map((s) => s.toString().toLowerCase())
-              .join(' ') ?? '';
-          
-          if (!name.contains(searchText) && 
-              !role.contains(searchText) && 
+          final specializations =
+              (caregiver['specializations'] as List<dynamic>?)
+                  ?.map((s) => s.toString().toLowerCase())
+                  .join(' ') ??
+              '';
+          if (!name.contains(searchText) &&
+              !role.contains(searchText) &&
               !specializations.contains(searchText)) {
             return false;
           }
         }
-        
         return true;
       }).toList();
 
@@ -133,7 +147,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
       ),
       child: Column(
         children: [
-          // Handle bar
           Container(
             margin: const EdgeInsets.only(top: 8),
             width: 40,
@@ -143,20 +156,22 @@ class _FindCareScreenState extends State<FindCareScreen> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Row(
                     children: [
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: Colors.grey.shade200,
-                        child: const Icon(Icons.person, size: 30, color: Colors.grey),
+                        child: const Icon(
+                          Icons.person,
+                          size: 30,
+                          color: Colors.grey,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -179,13 +194,25 @@ class _FindCareScreenState extends State<FindCareScreen> {
                             ),
                             Row(
                               children: [
-                                const Icon(Icons.star, color: Colors.amber, size: 16),
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.amber,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 4),
-                                Text('${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}'),
+                                Text(
+                                  '${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}',
+                                ),
                                 const SizedBox(width: 12),
-                                const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                                const Icon(
+                                  Icons.location_on,
+                                  color: Colors.grey,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 4),
-                                Text(caregiver['formattedDistance'] ?? 'Unknown'),
+                                Text(
+                                  caregiver['formattedDistance'] ?? 'Unknown',
+                                ),
                               ],
                             ),
                           ],
@@ -193,10 +220,7 @@ class _FindCareScreenState extends State<FindCareScreen> {
                       ),
                     ],
                   ),
-                  
                   const SizedBox(height: 24),
-                  
-                  // Rate
                   Row(
                     children: [
                       const Icon(Icons.attach_money, color: Colors.green),
@@ -210,101 +234,13 @@ class _FindCareScreenState extends State<FindCareScreen> {
                       ),
                     ],
                   ),
-                  
                   const SizedBox(height: 16),
-                  
-                  // Specializations
-                  if (caregiver['specializations'] != null && 
-                      (caregiver['specializations'] as List).isNotEmpty) ...[
-                    const Text(
-                      'Specializations',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: (caregiver['specializations'] as List<dynamic>)
-                          .map((spec) => Chip(
-                                label: Text(spec.toString()),
-                                backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  
-                  // Experience
-                  if (caregiver['experience'] != null) ...[
-                    Row(
-                      children: [
-                        const Icon(Icons.work, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Experience: ${caregiver['experience']}',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  
-                  // Certifications
-                  if (caregiver['certifications'] != null && 
-                      (caregiver['certifications'] as List).isNotEmpty) ...[
-                    const Text(
-                      'Certifications',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...(caregiver['certifications'] as List<dynamic>)
-                        .map((cert) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.verified, color: Colors.green, size: 16),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(cert.toString())),
-                                ],
-                              ),
-                            ))
-                        .toList(),
-                    const SizedBox(height: 16),
-                  ],
-                  
-                  // Address
-                  if (caregiver['address'] != null) ...[
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.red),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            caregiver['address'],
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  
-                  // Action buttons
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            // TODO: Navigate to full profile
-                          },
-                          child: const Text('View Full Profile'),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -312,7 +248,13 @@ class _FindCareScreenState extends State<FindCareScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            // TODO: Navigate to booking screen
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    BookingFormScreen(caregiver: caregiver),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppConstants.primaryColor,
@@ -345,11 +287,7 @@ class _FindCareScreenState extends State<FindCareScreen> {
         actions: [
           IconButton(
             icon: Icon(_showMap ? Icons.list : Icons.map),
-            onPressed: () {
-              setState(() {
-                _showMap = !_showMap;
-              });
-            },
+            onPressed: () => setState(() => _showMap = !_showMap),
           ),
         ],
       ),
@@ -361,7 +299,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
             color: Colors.white,
             child: Column(
               children: [
-                // Search Bar
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
@@ -378,30 +315,30 @@ class _FindCareScreenState extends State<FindCareScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  onChanged: (value) {
-                    _searchCaregivers();
-                  },
+                  onChanged: (value) => _searchCaregivers(),
                 ),
                 const SizedBox(height: 16),
-                
-                // Filters
                 Row(
                   children: [
-                    // Role Filter
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: _selectedRole,
                         decoration: const InputDecoration(
                           labelText: 'Role',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
-                        items: _roles.map((role) {
-                          return DropdownMenuItem<String>(
-                            value: role,
-                            child: Text(role),
-                          );
-                        }).toList(),
+                        items: _roles
+                            .map(
+                              (role) => DropdownMenuItem<String>(
+                                value: role,
+                                child: Text(role),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (value) {
                           setState(() {
                             _selectedRole = value!;
@@ -411,8 +348,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    
-                    // Distance Filter
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,14 +362,9 @@ class _FindCareScreenState extends State<FindCareScreen> {
                                   max: 50,
                                   divisions: 49,
                                   label: '${_maxDistance.round()} mi',
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _maxDistance = value;
-                                    });
-                                  },
-                                  onChangeEnd: (value) {
-                                    _searchCaregivers();
-                                  },
+                                  onChanged: (value) =>
+                                      setState(() => _maxDistance = value),
+                                  onChangeEnd: (value) => _searchCaregivers(),
                                 ),
                               ),
                               Text('${_maxDistance.round()} mi'),
@@ -445,8 +375,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
                     ),
                   ],
                 ),
-                
-                // Rate Range Filter
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -460,9 +388,7 @@ class _FindCareScreenState extends State<FindCareScreen> {
                         onChanged: (value) {
                           _minRate = double.tryParse(value) ?? 0.0;
                         },
-                        onSubmitted: (value) {
-                          _searchCaregivers();
-                        },
+                        onSubmitted: (value) => _searchCaregivers(),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -476,9 +402,7 @@ class _FindCareScreenState extends State<FindCareScreen> {
                         onChanged: (value) {
                           _maxRate = double.tryParse(value) ?? 100.0;
                         },
-                        onSubmitted: (value) {
-                          _searchCaregivers();
-                        },
+                        onSubmitted: (value) => _searchCaregivers(),
                       ),
                     ),
                   ],
@@ -486,8 +410,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
               ],
             ),
           ),
-          
-          // Error message
           if (_error != null)
             Container(
               width: double.infinity,
@@ -506,8 +428,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
                 ],
               ),
             ),
-          
-          // Results Count
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -525,14 +445,10 @@ class _FindCareScreenState extends State<FindCareScreen> {
               ],
             ),
           ),
-          
-          // Content (Map or List)
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _showMap
-                    ? _buildMapView()
-                    : _buildListView(),
+                : (_showMap ? _buildMapView() : _buildListView()),
           ),
         ],
       ),
@@ -540,11 +456,8 @@ class _FindCareScreenState extends State<FindCareScreen> {
   }
 
   Widget _buildMapView() {
-    if (_currentLocation == null) {
-      return const Center(
-        child: Text('Location not available'),
-      );
-    }
+    if (_currentLocation == null)
+      return const Center(child: Text('Location not available'));
 
     return GoogleMapWidget(
       initialLat: _currentLocation!.latitude,
@@ -586,7 +499,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Profile Image
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: Colors.grey.shade200,
@@ -597,8 +509,6 @@ class _FindCareScreenState extends State<FindCareScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  
-                  // Caregiver Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,11 +531,21 @@ class _FindCareScreenState extends State<FindCareScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 16),
+                            const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
                             const SizedBox(width: 4),
-                            Text('${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}'),
+                            Text(
+                              '${caregiver['rating']?.toStringAsFixed(1) ?? 'N/A'}',
+                            ),
                             const SizedBox(width: 12),
-                            const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                            const Icon(
+                              Icons.location_on,
+                              color: Colors.grey,
+                              size: 16,
+                            ),
                             const SizedBox(width: 4),
                             Text(caregiver['formattedDistance'] ?? 'Unknown'),
                           ],
@@ -633,43 +553,46 @@ class _FindCareScreenState extends State<FindCareScreen> {
                         const SizedBox(height: 8),
                         Text(
                           '\$${caregiver['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hour',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        if (caregiver['specializations'] != null && 
-                            (caregiver['specializations'] as List).isNotEmpty) ...[
+                        if (caregiver['specializations'] != null &&
+                            (caregiver['specializations'] as List)
+                                .isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 4,
                             runSpacing: 2,
-                            children: (caregiver['specializations'] as List<dynamic>)
-                                .take(3)
-                                .map((spec) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppConstants.primaryColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        spec.toString(),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppConstants.primaryColor,
+                            children:
+                                (caregiver['specializations'] as List<dynamic>)
+                                    .take(3)
+                                    .map(
+                                      (spec) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppConstants.primaryColor
+                                              .withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          spec.toString(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: AppConstants.primaryColor,
+                                          ),
                                         ),
                                       ),
-                                    ))
-                                .toList(),
+                                    )
+                                    .toList(),
                           ),
                         ],
                       ],
                     ),
                   ),
-                  
-                  // Action buttons
                   Column(
                     children: [
                       OutlinedButton(
@@ -679,7 +602,13 @@ class _FindCareScreenState extends State<FindCareScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: () {
-                          // TODO: Navigate to booking screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  BookingFormScreen(caregiver: caregiver),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppConstants.primaryColor,

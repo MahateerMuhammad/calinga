@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../models/user_model.dart';
 import '../../utils/constants.dart';
+import '../../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CareseekerProfileScreen extends StatefulWidget {
   const CareseekerProfileScreen({super.key});
@@ -28,6 +30,8 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
   bool _isLoading = false;
   File? _profileImage;
   UserModel? _userModel;
+  final AuthService _authService = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -47,45 +51,24 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
   }
 
   Future<void> _loadUserProfile() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // In a real app, fetch user data from Firestore
-      // For now, we'll use dummy data
-      _userModel = UserModel(
-        uid: 'dummy-uid',
-        fullName: 'John Doe',
-        email: 'john.doe@example.com',
-        phoneNumber: '+1234567890',
-        role: AppConstants.roleCareseeker,
-        address: '456 Oak St, Anytown, CA 12345',
-        age: 45,
-        emergencyContact: '+1987654321',
-        medicalConditions: 'None',
-        isAvailableForWork: false,
-      );
-
-      // Populate form fields
-      _fullNameController.text = _userModel!.fullName;
-      _ageController.text = _userModel!.age?.toString() ?? '';
-      _addressController.text = _userModel!.address ?? '';
-      _phoneController.text = _userModel!.phoneNumber;
-      _emergencyContactController.text = _userModel!.emergencyContact ?? '';
-      _medicalConditionsController.text = _userModel!.medicalConditions ?? '';
-
-      setState(() {
-        _isLoading = false;
-      });
+      _userModel = await _authService.getCurrentUserData();
+      if (_userModel != null) {
+        _fullNameController.text = _userModel!.fullName;
+        _ageController.text = _userModel!.age?.toString() ?? '';
+        _addressController.text = _userModel!.address ?? '';
+        _phoneController.text = _userModel!.phoneNumber;
+        _emergencyContactController.text = _userModel!.emergencyContact ?? '';
+        _medicalConditionsController.text = _userModel!.medicalConditions ?? '';
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      // Show error
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -156,37 +139,30 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate() || _userModel == null) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // In a real app, update user data in Firestore
-      // For now, just show success message
-      await Future.delayed(
-        const Duration(seconds: 1),
-      ); // Simulate network delay
-
-      if (!mounted) return;
+      // Update Firestore user document
+      await _firestore.collection('users').doc(_userModel!.uid).set({
+        'fullName': _fullNameController.text.trim(),
+        'age': int.tryParse(_ageController.text.trim()),
+        'address': _addressController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'emergencyContact': _emergencyContactController.text.trim(),
+        'medicalConditions': _medicalConditionsController.text.trim(),
+      }, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),
       );
-
-      setState(() {
-        _isLoading = false;
-      });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -260,12 +236,9 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
                         labelText: 'Full Name',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your full name';
-                        }
-                        return null;
-                      },
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'Please enter your full name'
+                          : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -277,15 +250,6 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
                         labelText: 'Age',
                         prefixIcon: Icon(Icons.cake),
                       ),
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final age = int.tryParse(value);
-                          if (age == null || age < 18 || age > 100) {
-                            return 'Please enter a valid age between 18 and 100';
-                          }
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -307,12 +271,9 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
                         labelText: 'Phone Number',
                         prefixIcon: Icon(Icons.phone),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
-                        }
-                        return null;
-                      },
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'Please enter your phone number'
+                          : null,
                     ),
                     const SizedBox(height: 24),
 

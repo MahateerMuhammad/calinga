@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
+import '../../providers/booking_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -13,69 +16,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Dummy data for bookings
-  final List<Map<String, dynamic>> _upcomingBookings = [
-    {
-      'id': '1001',
-      'caregiverName': 'Sarah Johnson',
-      'role': 'CNA',
-      'date': DateTime.now().add(const Duration(days: 2)),
-      'startTime': '09:00 AM',
-      'endTime': '11:00 AM',
-      'address': '123 Main St, Anytown, CA 12345',
-      'status': 'Confirmed',
-    },
-    {
-      'id': '1002',
-      'caregiverName': 'Michael Chen',
-      'role': 'RN',
-      'date': DateTime.now().add(const Duration(days: 5)),
-      'startTime': '02:00 PM',
-      'endTime': '04:00 PM',
-      'address': '123 Main St, Anytown, CA 12345',
-      'status': 'Pending',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _pastBookings = [
-    {
-      'id': '1003',
-      'caregiverName': 'Emily Rodriguez',
-      'role': 'HHA',
-      'date': DateTime.now().subtract(const Duration(days: 3)),
-      'startTime': '10:00 AM',
-      'endTime': '12:00 PM',
-      'address': '123 Main St, Anytown, CA 12345',
-      'status': 'Completed',
-      'rating': 4.5,
-    },
-    {
-      'id': '1004',
-      'caregiverName': 'David Kim',
-      'role': 'PT',
-      'date': DateTime.now().subtract(const Duration(days: 7)),
-      'startTime': '03:00 PM',
-      'endTime': '04:00 PM',
-      'address': '123 Main St, Anytown, CA 12345',
-      'status': 'Completed',
-      'rating': 5.0,
-    },
-    {
-      'id': '1005',
-      'caregiverName': 'Lisa Patel',
-      'role': 'LVN',
-      'date': DateTime.now().subtract(const Duration(days: 14)),
-      'startTime': '11:00 AM',
-      'endTime': '01:00 PM',
-      'address': '123 Main St, Anytown, CA 12345',
-      'status': 'Cancelled',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    Future.microtask(
+      () => Provider.of<BookingProvider>(context, listen: false).initialize(),
+    );
   }
 
   @override
@@ -90,43 +37,65 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Bookings'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Past'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Upcoming Bookings Tab
-          _upcomingBookings.isEmpty
-              ? const Center(child: Text('No upcoming bookings'))
-              : ListView.builder(
-                  itemCount: _upcomingBookings.length,
-                  itemBuilder: (context, index) {
-                    final booking = _upcomingBookings[index];
-                    return _buildBookingCard(booking, isUpcoming: true);
-                  },
-                ),
+    return Consumer<BookingProvider>(
+      builder: (context, bookingProvider, _) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('My Bookings'),
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'Upcoming'),
+                Tab(text: 'Past'),
+              ],
+            ),
+          ),
+          body: bookingProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Upcoming Bookings Tab
+                    bookingProvider.upcomingBookings.isEmpty
+                        ? const Center(child: Text('No upcoming bookings'))
+                        : RefreshIndicator(
+                            onRefresh: () async => bookingProvider.refresh(),
+                            child: ListView.builder(
+                              itemCount:
+                                  bookingProvider.upcomingBookings.length,
+                              itemBuilder: (context, index) {
+                                final booking =
+                                    bookingProvider.upcomingBookings[index];
+                                return _buildBookingCard(
+                                  booking.toJson(),
+                                  isUpcoming: true,
+                                );
+                              },
+                            ),
+                          ),
 
-          // Past Bookings Tab
-          _pastBookings.isEmpty
-              ? const Center(child: Text('No past bookings'))
-              : ListView.builder(
-                  itemCount: _pastBookings.length,
-                  itemBuilder: (context, index) {
-                    final booking = _pastBookings[index];
-                    return _buildBookingCard(booking, isUpcoming: false);
-                  },
+                    // Past Bookings Tab
+                    bookingProvider.completedBookings.isEmpty
+                        ? const Center(child: Text('No past bookings'))
+                        : RefreshIndicator(
+                            onRefresh: () async => bookingProvider.refresh(),
+                            child: ListView.builder(
+                              itemCount:
+                                  bookingProvider.completedBookings.length,
+                              itemBuilder: (context, index) {
+                                final booking =
+                                    bookingProvider.completedBookings[index];
+                                return _buildBookingCard(
+                                  booking.toJson(),
+                                  isUpcoming: false,
+                                );
+                              },
+                            ),
+                          ),
+                  ],
                 ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -135,9 +104,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     required bool isUpcoming,
   }) {
     final Color statusColor =
-        booking['status'] == 'Confirmed' || booking['status'] == 'Completed'
+        booking['status'] == 'confirmed' || booking['status'] == 'completed'
         ? Colors.green
-        : booking['status'] == 'Pending'
+        : booking['status'] == 'pending'
         ? Colors.orange
         : Colors.red;
 
@@ -153,7 +122,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Booking #${booking['id']}',
+                  'Booking #${booking['bookingId'] ?? ''}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -193,17 +162,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      booking['caregiverName'],
+                      booking['caregiver']?['name'] ?? 'Caregiver',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     Text(
-                      booking['role'],
+                      booking['caregiver']?['role'] ?? 'Role',
                       style: TextStyle(color: AppConstants.primaryColor),
                     ),
-                    if (!isUpcoming && booking['status'] == 'Completed')
+                    if (!isUpcoming &&
+                        booking['status'] == 'completed' &&
+                        booking['rating'] != null)
                       Row(
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 16),
@@ -222,11 +193,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               children: [
                 const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(_formatDate(booking['date'])),
+                Text(
+                  _formatDate(
+                    (booking['schedule']?['date'] as Timestamp).toDate(),
+                  ),
+                ),
                 const SizedBox(width: 16),
                 const Icon(Icons.access_time, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text('${booking['startTime']} - ${booking['endTime']}'),
+                Text(
+                  '${booking['schedule']?['startTime']} - ${booking['schedule']?['endTime']}',
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -236,7 +213,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               children: [
                 const Icon(Icons.location_on, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Expanded(child: Text(booking['address'])),
+                Expanded(child: Text(booking['location']?['address'] ?? '')),
               ],
             ),
             const SizedBox(height: 16),
@@ -245,7 +222,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (isUpcoming && booking['status'] != 'Cancelled')
+                if (isUpcoming && booking['status'] != 'cancelled')
                   OutlinedButton(
                     onPressed: () {
                       // Cancel booking
