@@ -22,14 +22,20 @@ class BookingCard extends StatelessWidget {
     this.isCompact = false,
   }) : super(key: key);
 
+  // Helper method to safely extract substring
+  String _getSafeSubstring(String? text, int maxLength) {
+    if (text == null || text.isEmpty) {
+      return 'N/A';
+    }
+    return text.length > maxLength ? text.substring(0, maxLength) : text;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -45,9 +51,9 @@ class BookingCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Booking #${booking.bookingId.substring(0, 8)}',
-                          style: const TextStyle(
+                        const Text(
+                          'Care Service',
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -95,7 +101,8 @@ class BookingCard extends StatelessWidget {
               _buildLocationInfo(),
 
               // Special requirements
-              if (booking.specialRequirements != null && booking.specialRequirements!.isNotEmpty) ...[
+              if (booking.specialRequirements != null &&
+                  booking.specialRequirements!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _buildSpecialRequirements(),
               ],
@@ -165,11 +172,7 @@ class BookingCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            statusIcon,
-            color: chipColor,
-            size: 14,
-          ),
+          Icon(statusIcon, color: chipColor, size: 14),
           const SizedBox(width: 4),
           Text(
             statusText,
@@ -212,10 +215,7 @@ class BookingCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 booking.caregiver['role'] ?? 'Caregiver',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
             ],
           ),
@@ -238,11 +238,7 @@ class BookingCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.medical_services,
-            color: Colors.blue[700],
-            size: 20,
-          ),
+          Icon(Icons.medical_services, color: Colors.blue[700], size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -259,10 +255,7 @@ class BookingCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${booking.serviceDetails['duration']?.toString() ?? '0'} hours',
-                  style: TextStyle(
-                    color: Colors.blue[600],
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.blue[600], fontSize: 12),
                 ),
               ],
             ),
@@ -289,11 +282,7 @@ class BookingCard extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(
-          Icons.schedule,
-          color: Colors.grey[600],
-          size: 20,
-        ),
+        Icon(Icons.schedule, color: Colors.grey[600], size: 20),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -309,10 +298,7 @@ class BookingCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '$startTime - $endTime',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ],
           ),
@@ -324,19 +310,12 @@ class BookingCard extends StatelessWidget {
   Widget _buildLocationInfo() {
     return Row(
       children: [
-        Icon(
-          Icons.location_on,
-          color: Colors.grey[600],
-          size: 20,
-        ),
+        Icon(Icons.location_on, color: Colors.grey[600], size: 20),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             booking.location['address'] ?? 'Location not specified',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
           ),
         ),
       ],
@@ -353,11 +332,7 @@ class BookingCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.note,
-            color: Colors.amber[700],
-            size: 20,
-          ),
+          Icon(Icons.note, color: Colors.amber[700], size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -374,10 +349,7 @@ class BookingCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   booking.specialRequirements!,
-                  style: TextStyle(
-                    color: Colors.amber[800],
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.amber[800], fontSize: 12),
                 ),
               ],
             ),
@@ -390,18 +362,11 @@ class BookingCard extends StatelessWidget {
   Widget _buildRatingInfo() {
     return Row(
       children: [
-        Icon(
-          Icons.star,
-          color: Colors.amber,
-          size: 20,
-        ),
+        Icon(Icons.star, color: Colors.amber, size: 20),
         const SizedBox(width: 8),
         Text(
           '${booking.rating!.toStringAsFixed(1)}/5.0',
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
         if (booking.review != null && booking.review!.isNotEmpty) ...[
           const SizedBox(width: 8),
@@ -439,7 +404,8 @@ class BookingCard extends StatelessWidget {
             ),
           ),
         if (booking.canBeRated) ...[
-          if (booking.isPending || booking.isConfirmed) const SizedBox(width: 8),
+          if (booking.isPending || booking.isConfirmed)
+            const SizedBox(width: 8),
           Expanded(
             child: ElevatedButton.icon(
               onPressed: onRate,
@@ -462,20 +428,15 @@ class CompactBookingCard extends StatelessWidget {
   final BookingModel booking;
   final VoidCallback? onTap;
 
-  const CompactBookingCard({
-    Key? key,
-    required this.booking,
-    this.onTap,
-  }) : super(key: key);
+  const CompactBookingCard({Key? key, required this.booking, this.onTap})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
@@ -493,7 +454,7 @@ class CompactBookingCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // Caregiver avatar
               CircleAvatar(
                 radius: 16,
@@ -506,7 +467,7 @@ class CompactBookingCard extends StatelessWidget {
                     : null,
               ),
               const SizedBox(width: 12),
-              
+
               // Booking details
               Expanded(
                 child: Column(
@@ -526,15 +487,12 @@ class CompactBookingCard extends StatelessWidget {
                             ? booking.schedule['date'] as DateTime
                             : DateTime.now(),
                       ),
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              
+
               // Price
               Text(
                 '\$${(booking.serviceDetails['totalCost'] ?? 0).toStringAsFixed(0)}',
@@ -566,4 +524,4 @@ class CompactBookingCard extends StatelessWidget {
         return Colors.grey;
     }
   }
-} 
+}

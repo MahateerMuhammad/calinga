@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
 import '../../providers/booking_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'careseeker_home.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -20,9 +21,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Future.microtask(
-      () => Provider.of<BookingProvider>(context, listen: false).initialize(),
-    );
+    Future.microtask(() {
+      final provider = Provider.of<BookingProvider>(context, listen: false);
+      provider.setUserRole('CareSeeker');
+      provider.initialize();
+    });
   }
 
   @override
@@ -42,6 +45,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         return Scaffold(
           appBar: AppBar(
             title: const Text('My Bookings'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CareseekerHome(),
+                  ),
+                  (route) => false,
+                );
+              },
+            ),
             bottom: TabBar(
               controller: _tabController,
               tabs: const [
@@ -117,16 +132,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Booking ID and Status
+            // Booking Header and Status
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Booking #${booking['bookingId'] ?? ''}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                const Text(
+                  'Care Service',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -158,31 +170,39 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   child: const Icon(Icons.person, size: 25, color: Colors.grey),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      booking['caregiver']?['name'] ?? 'Caregiver',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        booking['caregiver']?['name'] ?? 'Caregiver',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      booking['caregiver']?['role'] ?? 'Role',
-                      style: TextStyle(color: AppConstants.primaryColor),
-                    ),
-                    if (!isUpcoming &&
-                        booking['status'] == 'completed' &&
-                        booking['rating'] != null)
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
-                          Text('${booking['rating']}'),
-                        ],
+                      Text(
+                        booking['caregiver']?['role'] ?? 'Role',
+                        style: TextStyle(color: AppConstants.primaryColor),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                  ],
+                      if (!isUpcoming &&
+                          booking['status'] == 'completed' &&
+                          booking['rating'] != null)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text('${booking['rating']}'),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -193,16 +213,23 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               children: [
                 const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(
-                  _formatDate(
-                    (booking['schedule']?['date'] as Timestamp).toDate(),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    _formatDate(
+                      (booking['schedule']?['date'] as Timestamp).toDate(),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 16),
                 const Icon(Icons.access_time, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(
-                  '${booking['schedule']?['startTime']} - ${booking['schedule']?['endTime']}',
+                Expanded(
+                  child: Text(
+                    '${booking['schedule']?['startTime']} - ${booking['schedule']?['endTime']}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

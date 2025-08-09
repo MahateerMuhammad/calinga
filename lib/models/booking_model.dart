@@ -39,11 +39,28 @@ class BookingModel {
       location: json['location'] ?? {},
       status: json['status'] ?? 'pending',
       specialRequirements: json['specialRequirements'],
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
       rating: json['rating']?.toDouble(),
       review: json['review'],
     );
+  }
+
+  // Helper method to safely parse DateTime from various formats
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    } else if (value is Timestamp) {
+      return value.toDate();
+    } else if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    } else if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    } else {
+      return DateTime.now();
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -100,4 +117,4 @@ class BookingModel {
   bool get isCompleted => status == 'completed';
   bool get isCancelled => status == 'cancelled';
   bool get canBeRated => isCompleted && rating == null;
-} 
+}

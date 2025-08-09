@@ -18,6 +18,7 @@ class GoogleMapWidget extends StatefulWidget {
   final bool showControls;
   final double? height;
   final double? width;
+  final String? mapId; // Add unique map ID for hero tags
 
   const GoogleMapWidget({
     Key? key,
@@ -32,93 +33,144 @@ class GoogleMapWidget extends StatefulWidget {
     this.showControls = true,
     this.height,
     this.width,
+    this.mapId, // Make hero tags unique
   }) : super(key: key);
 
   @override
   State<GoogleMapWidget> createState() => _GoogleMapWidgetState();
 }
 
-class _GoogleMapWidgetState extends State<GoogleMapWidget> {
+class _GoogleMapWidgetState extends State<GoogleMapWidget> with AutomaticKeepAliveClientMixin {
   GoogleMapController? _mapController;
   final GoogleMapsService _mapsService = GoogleMapsService();
   Set<Marker> _markers = {};
   bool _isLoading = true;
+  bool _mapCreated = false;
+
+  // Keep alive to prevent recreation issues
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _createMarkers();
+    // Delay marker creation to prevent buffer issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _createMarkers();
+      }
+    });
   }
 
   @override
   void didUpdateWidget(GoogleMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.markers != widget.markers) {
+    if (oldWidget.markers != widget.markers && _mapCreated) {
       _createMarkers();
     }
   }
 
   void _createMarkers() async {
+    if (!mounted) return;
+    
     Set<Marker> markers = {};
     
-    for (Map<String, dynamic> caregiver in widget.markers) {
-      try {
-        BitmapDescriptor icon = await _mapsService.createCustomMarkerIcon(
-          role: caregiver['role'] ?? 'Caregiver',
-          isAvailable: caregiver['isAvailable'] ?? false,
-        );
+    // Process markers in batches to prevent buffer overflow
+    const int batchSize = 5;
+    for (int i = 0; i < widget.markers.length; i += batchSize) {
+      if (!mounted) break;
+      
+      final batch = widget.markers.skip(i).take(batchSize);
+      
+      for (Map<String, dynamic> caregiver in batch) {
+        try {
+          // Use simpler default markers to avoid custom icon buffer issues
+          BitmapDescriptor icon = caregiver['isAvailable'] == true 
+              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
-        markers.add(Marker(
-          markerId: MarkerId(caregiver['id']),
-          position: LatLng(caregiver['latitude'], caregiver['longitude']),
-          icon: icon,
-          infoWindow: InfoWindow(
-            title: caregiver['name'] ?? 'Unknown',
-            snippet: _buildMarkerSnippet(caregiver),
-          ),
-          onTap: () => widget.onMarkerTap?.call(caregiver),
-        ));
-      } catch (e) {
-        debugPrint('Error creating marker: $e');
-        // Add default marker if custom icon fails
-        markers.add(Marker(
-          markerId: MarkerId(caregiver['id']),
-          position: LatLng(caregiver['latitude'], caregiver['longitude']),
-          infoWindow: InfoWindow(
-            title: caregiver['name'] ?? 'Unknown',
-            snippet: _buildMarkerSnippet(caregiver),
-          ),
-          onTap: () => widget.onMarkerTap?.call(caregiver),
-        ));
+          markers.add(Marker(
+            markerId: MarkerId('marker_${caregiver['id']}_${widget.mapId ?? 'default'}'),
+            position: LatLng(
+              caregiver['latitude']?.toDouble() ?? 0.0,
+              caregiver['longitude']?.toDouble() ?? 0.0,
+            ),
+            icon: icon,
+            infoWindow: InfoWindow(
+              title: caregiver['name']?.toString() ?? 'Unknown',
+              snippet: _buildMarkerSnippet(caregiver),
+            ),
+            onTap: () => widget.onMarkerTap?.call(caregiver),
+          ));
+        } catch (e) {
+          debugPrint('Error creating marker for ${caregiver['id']}: $e');
+          // Skip problematic markers instead of crashing
+          continue;
+        }
+      }
+      
+      // Small delay between batches to prevent buffer overload
+      if (i + batchSize < widget.markers.length) {
+        await Future.delayed(const Duration(milliseconds: 50));
       }
     }
 
-    setState(() {
-      _markers = markers;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _markers = markers;
+        _isLoading = false;
+      });
+    }
   }
 
   String _buildMarkerSnippet(Map<String, dynamic> caregiver) {
     List<String> info = [];
     
     if (caregiver['role'] != null) {
-      info.add(caregiver['role']);
+      info.add(caregiver['role'].toString());
     }
     
     if (caregiver['formattedDistance'] != null) {
-      info.add(caregiver['formattedDistance']);
+      info.add(caregiver['formattedDistance'].toString());
     }
     
     if (caregiver['hourlyRate'] != null) {
-      info.add('\$${caregiver['hourlyRate'].toStringAsFixed(0)}/hr');
+      final rate = caregiver['hourlyRate'];
+      if (rate is num) {
+        info.add('\$${rate.toStringAsFixed(0)}/hr');
+      }
     }
 
     return info.join(' • ');
   }
 
   void _onMapCreated(GoogleMapController controller) {
+    if (!mounted) return;
+    
     _mapController = controller;
+    _mapCreated = true;
+    
+    // Style the map to reduce rendering load
+    const String mapStyle = '''
+    [
+      {
+        "featureType": "poi",
+        "elementType": "labels",
+        "stylers": [{"visibility": "off"}]
+      },
+      {
+        "featureType": "transit",
+        "elementType": "labels",
+        "stylers": [{"visibility": "off"}]
+      }
+    ]
+    ''';
+    
+    try {
+      controller.setMapStyle(mapStyle);
+    } catch (e) {
+      debugPrint('Error setting map style: $e');
+    }
   }
 
   void _onCameraMove(CameraPosition position) {
@@ -130,101 +182,134 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
   }
 
   Future<void> _animateToUserLocation() async {
+    if (!_mapCreated || _mapController == null) return;
+    
     final locationProvider = Provider.of<LocationProvider>(context, listen: false);
     
-    if (locationProvider.hasValidLocation && _mapController != null) {
-      await _mapController!.animateCamera(
-        CameraUpdate.newLatLng(
-          LatLng(
-            locationProvider.currentLocation!.latitude,
-            locationProvider.currentLocation!.longitude,
+    if (locationProvider.hasValidLocation) {
+      try {
+        await _mapController!.animateCamera(
+          CameraUpdate.newLatLng(
+            LatLng(
+              locationProvider.currentLocation!.latitude,
+              locationProvider.currentLocation!.longitude,
+            ),
           ),
-        ),
-      );
+        );
+      } catch (e) {
+        debugPrint('Error animating to user location: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to navigate to your location'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     } else {
-      // Show snackbar if location is not available
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to get your current location'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to get your current location'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _animateToBounds() async {
-    if (widget.markers.isEmpty || _mapController == null) return;
+    if (widget.markers.isEmpty || !_mapCreated || _mapController == null) return;
 
-    double minLat = double.infinity;
-    double maxLat = -double.infinity;
-    double minLng = double.infinity;
-    double maxLng = -double.infinity;
+    try {
+      double minLat = double.infinity;
+      double maxLat = -double.infinity;
+      double minLng = double.infinity;
+      double maxLng = -double.infinity;
 
-    for (Map<String, dynamic> marker in widget.markers) {
-      double lat = marker['latitude'];
-      double lng = marker['longitude'];
-      
-      minLat = min(minLat, lat);
-      maxLat = max(maxLat, lat);
-      minLng = min(minLng, lng);
-      maxLng = max(maxLng, lng);
-    }
+      for (Map<String, dynamic> marker in widget.markers) {
+        double lat = marker['latitude']?.toDouble() ?? 0.0;
+        double lng = marker['longitude']?.toDouble() ?? 0.0;
+        
+        if (lat != 0.0 && lng != 0.0) {
+          minLat = min(minLat, lat);
+          maxLat = max(maxLat, lat);
+          minLng = min(minLng, lng);
+          maxLng = max(maxLng, lng);
+        }
+      }
 
-    // Add padding to bounds
-    double latPadding = (maxLat - minLat) * 0.1;
-    double lngPadding = (maxLng - minLng) * 0.1;
+      if (minLat == double.infinity) return;
 
-    await _mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat - latPadding, minLng - lngPadding),
-          northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+      // Add padding to bounds
+      double latPadding = max((maxLat - minLat) * 0.1, 0.01);
+      double lngPadding = max((maxLng - minLng) * 0.1, 0.01);
+
+      await _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+            northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+          ),
+          100.0, // Increased padding
         ),
-        50.0, // padding
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('Error animating to bounds: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
+    final String uniqueId = widget.mapId ?? widget.hashCode.toString();
+    
     return Container(
       height: widget.height,
       width: widget.width,
       child: Stack(
         children: [
-          GoogleMap(
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: LatLng(widget.initialLat, widget.initialLng),
-              zoom: widget.initialZoom,
+          // Wrap GoogleMap in RepaintBoundary to isolate rendering
+          RepaintBoundary(
+            child: GoogleMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                target: LatLng(widget.initialLat, widget.initialLng),
+                zoom: widget.initialZoom,
+              ),
+              markers: _markers,
+              onTap: _onMapTap,
+              onCameraMove: _onCameraMove,
+              myLocationEnabled: widget.showUserLocation,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              compassEnabled: true,
+              trafficEnabled: false,
+              indoorViewEnabled: false,
+              buildingsEnabled: false, // Disable to reduce rendering load
+              tiltGesturesEnabled: false, // Disable to reduce GPU load
+              rotateGesturesEnabled: false, // Disable to reduce GPU load
+              scrollGesturesEnabled: true,
+              zoomGesturesEnabled: true,
+              liteModeEnabled: false, // Ensure full interactivity
             ),
-            markers: _markers,
-            onTap: _onMapTap,
-            onCameraMove: _onCameraMove,
-            myLocationEnabled: widget.showUserLocation,
-            myLocationButtonEnabled: false, // We'll add custom button
-            zoomControlsEnabled: false, // We'll add custom controls
-            mapToolbarEnabled: false,
-            compassEnabled: true,
-            trafficEnabled: false,
-            indoorViewEnabled: false,
-            buildingsEnabled: true,
-            tiltGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            zoomGesturesEnabled: true,
           ),
           
-          // Custom controls
-          if (widget.showControls) ...[
+          // Custom controls with unique hero tags
+          if (widget.showControls && _mapCreated) ...[
             // Location button
             Positioned(
               top: 16,
               right: 16,
               child: FloatingActionButton.small(
+                heroTag: 'location_btn_$uniqueId',
                 onPressed: _animateToUserLocation,
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black87,
+                elevation: 2,
                 child: const Icon(Icons.my_location),
               ),
             ),
@@ -235,9 +320,11 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
                 top: 80,
                 right: 16,
                 child: FloatingActionButton.small(
+                  heroTag: 'bounds_btn_$uniqueId',
                   onPressed: _animateToBounds,
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black87,
+                  elevation: 2,
                   child: const Icon(Icons.fit_screen),
                 ),
               ),
@@ -249,24 +336,24 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
               child: Column(
                 children: [
                   FloatingActionButton.small(
+                    heroTag: 'zoom_in_btn_$uniqueId',
                     onPressed: () {
-                      _mapController?.animateCamera(
-                        CameraUpdate.zoomIn(),
-                      );
+                      _mapController?.animateCamera(CameraUpdate.zoomIn());
                     },
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black87,
+                    elevation: 2,
                     child: const Icon(Icons.add),
                   ),
                   const SizedBox(height: 8),
                   FloatingActionButton.small(
+                    heroTag: 'zoom_out_btn_$uniqueId',
                     onPressed: () {
-                      _mapController?.animateCamera(
-                        CameraUpdate.zoomOut(),
-                      );
+                      _mapController?.animateCamera(CameraUpdate.zoomOut());
                     },
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black87,
+                    elevation: 2,
                     child: const Icon(Icons.remove),
                   ),
                 ],
@@ -276,14 +363,15 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
           
           // Loading indicator
           if (_isLoading)
-            const Positioned.fill(
-              child: Center(
+            Container(
+              color: Colors.white,
+              child: const Center(
                 child: CircularProgressIndicator(),
               ),
             ),
           
-          // Error indicator
-          if (widget.markers.isEmpty && !_isLoading)
+          // No markers message
+          if (widget.markers.isEmpty && !_isLoading && _mapCreated)
             Positioned(
               bottom: 16,
               left: 16,
@@ -315,7 +403,9 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
 
   @override
   void dispose() {
+    // Properly dispose of map controller
     _mapController?.dispose();
+    _mapController = null;
     super.dispose();
   }
-} 
+}

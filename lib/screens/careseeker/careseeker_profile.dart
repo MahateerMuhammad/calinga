@@ -7,6 +7,7 @@ import '../../models/user_model.dart';
 import '../../utils/constants.dart';
 import '../../services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'careseeker_home.dart';
 
 class CareseekerProfileScreen extends StatefulWidget {
   const CareseekerProfileScreen({super.key});
@@ -169,7 +170,19 @@ class _CareseekerProfileScreenState extends State<CareseekerProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const CareseekerHome()),
+              (route) => false,
+            );
+          },
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

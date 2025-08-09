@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking_model.dart';
 import '../services/booking_service.dart';
+import '../services/auth_service.dart';
+import '../services/google_maps_service.dart';
 
 class BookingProvider with ChangeNotifier {
   final BookingService _bookingService = BookingService();
@@ -24,6 +27,8 @@ class BookingProvider with ChangeNotifier {
   String? get error => _error;
   String? get userRole => _userRole;
 
+  // Set user role manually
+
   // Initialize booking provider
   Future<void> initialize() async {
     final user = _auth.currentUser;
@@ -33,13 +38,39 @@ class BookingProvider with ChangeNotifier {
     _clearError();
 
     try {
+      // First, try to fix any existing bookings with empty IDs
+      try {
+        await _bookingService.fixExistingBookings();
+        await _bookingService.testCaregiverIds(); // Test caregiver document IDs
+      } catch (e) {
+        print('Warning: Could not run booking migration: $e');
+      }
+
       // Get user role from auth service
-      // TODO: Implement role detection or pass from auth service
-      _userRole = 'CareSeeker'; // Default for now
+      if (_userRole == null) {
+        // Try to determine role from user data
+        try {
+          final authService = AuthService();
+          final userData = await authService.getCurrentUserData();
+          _userRole = userData?.role ?? 'CareSeeker'; // Default for careseeker
+        } catch (e) {
+          _userRole = 'CareSeeker'; // Fallback
+        }
+      }
+
+      // If user is a caregiver, ensure their document uses Firebase Auth UID
+      if (_userRole == 'CALiNGApro') {
+        try {
+          final GoogleMapsService mapsService = GoogleMapsService();
+          await mapsService.ensureCaregiverDocumentId(user.uid);
+        } catch (e) {
+          print('Warning: Could not fix caregiver document ID: $e');
+        }
+      }
 
       // Load all bookings
       await loadBookings();
-      
+
       // Load upcoming and completed bookings
       await loadUpcomingBookings();
       await loadCompletedBookings();
@@ -53,18 +84,71 @@ class BookingProvider with ChangeNotifier {
   // Load all bookings for current user
   Future<void> loadBookings() async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      print('DEBUG: No current user, cannot load bookings');
+      return;
+    }
 
+    print(
+      'DEBUG: Loading bookings for user: ${user.uid} with role: $_userRole',
+    );
     _setLoading(true);
     _clearError();
 
     try {
-      _bookings = await _bookingService.getUserBookings(user.uid, role: _userRole);
+      _bookings = await _bookingService.getUserBookings(
+        user.uid,
+        role: _userRole,
+      );
+      print('DEBUG: Loaded ${_bookings.length} bookings');
+      _categorizeBookings(); // Categorize bookings after loading
       notifyListeners();
     } catch (e) {
+      print('DEBUG: Error loading bookings: $e');
       _setError('Failed to load bookings: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  // Categorize bookings into upcoming and completed
+  void _categorizeBookings() {
+    _upcomingBookings = _bookings
+        .where(
+          (booking) =>
+              booking.status == 'pending' || booking.status == 'confirmed',
+        )
+        .toList();
+
+    _completedBookings = _bookings
+        .where((booking) => booking.status == 'completed')
+        .toList();
+
+    // Sort upcoming by date (earliest first)
+    _upcomingBookings.sort(
+      (a, b) => _parseScheduleDate(
+        a.schedule['date'],
+      ).compareTo(_parseScheduleDate(b.schedule['date'])),
+    );
+
+    // Sort completed by date (most recent first)
+    _completedBookings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  // Helper method to safely parse schedule date
+  DateTime _parseScheduleDate(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    } else if (value is Timestamp) {
+      return value.toDate();
+    } else if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    } else if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    } else {
+      return DateTime.now();
     }
   }
 
@@ -74,7 +158,8 @@ class BookingProvider with ChangeNotifier {
     if (user == null) return;
 
     try {
-      _upcomingBookings = await _bookingService.getUpcomingBookings(user.uid, role: _userRole);
+      // Use categorization from existing bookings since we already have all data
+      _categorizeBookings();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load upcoming bookings: $e');
@@ -87,7 +172,8 @@ class BookingProvider with ChangeNotifier {
     if (user == null) return;
 
     try {
-      _completedBookings = await _bookingService.getCompletedBookings(user.uid, role: _userRole);
+      // Use categorization from existing bookings since we already have all data
+      _categorizeBookings();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load completed bookings: $e');
@@ -101,17 +187,19 @@ class BookingProvider with ChangeNotifier {
 
     try {
       final bookingId = await _bookingService.createBooking(booking);
-      
+
       // Add to local list
       final newBooking = booking.copyWith(bookingId: bookingId);
       _bookings.insert(0, newBooking);
-      
+
       // Update upcoming bookings if applicable
       if (newBooking.isPending || newBooking.isConfirmed) {
         _upcomingBookings.add(newBooking);
-        _upcomingBookings.sort((a, b) => a.schedule['date'].compareTo(b.schedule['date']));
+        _upcomingBookings.sort(
+          (a, b) => a.schedule['date'].compareTo(b.schedule['date']),
+        );
       }
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -129,7 +217,7 @@ class BookingProvider with ChangeNotifier {
 
     try {
       await _bookingService.updateBookingStatus(bookingId, newStatus);
-      
+
       // Update local booking
       final index = _bookings.indexWhere((b) => b.bookingId == bookingId);
       if (index != -1) {
@@ -140,21 +228,23 @@ class BookingProvider with ChangeNotifier {
       }
 
       // Update upcoming bookings
-      final upcomingIndex = _upcomingBookings.indexWhere((b) => b.bookingId == bookingId);
+      final upcomingIndex = _upcomingBookings.indexWhere(
+        (b) => b.bookingId == bookingId,
+      );
       if (upcomingIndex != -1) {
         if (newStatus == 'completed' || newStatus == 'cancelled') {
           _upcomingBookings.removeAt(upcomingIndex);
         } else {
-          _upcomingBookings[upcomingIndex] = _upcomingBookings[upcomingIndex].copyWith(
-            status: newStatus,
-            updatedAt: DateTime.now(),
-          );
+          _upcomingBookings[upcomingIndex] = _upcomingBookings[upcomingIndex]
+              .copyWith(status: newStatus, updatedAt: DateTime.now());
         }
       }
 
       // Update completed bookings if status is completed
       if (newStatus == 'completed') {
-        final completedBooking = _bookings.firstWhere((b) => b.bookingId == bookingId);
+        final completedBooking = _bookings.firstWhere(
+          (b) => b.bookingId == bookingId,
+        );
         _completedBookings.add(completedBooking);
         _completedBookings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
@@ -170,13 +260,17 @@ class BookingProvider with ChangeNotifier {
   }
 
   // Add rating and review
-  Future<bool> addRatingAndReview(String bookingId, double rating, String review) async {
+  Future<bool> addRatingAndReview(
+    String bookingId,
+    double rating,
+    String review,
+  ) async {
     _setLoading(true);
     _clearError();
 
     try {
       await _bookingService.addRatingAndReview(bookingId, rating, review);
-      
+
       // Update local booking
       final index = _bookings.indexWhere((b) => b.bookingId == bookingId);
       if (index != -1) {
@@ -188,13 +282,16 @@ class BookingProvider with ChangeNotifier {
       }
 
       // Update completed bookings
-      final completedIndex = _completedBookings.indexWhere((b) => b.bookingId == bookingId);
+      final completedIndex = _completedBookings.indexWhere(
+        (b) => b.bookingId == bookingId,
+      );
       if (completedIndex != -1) {
-        _completedBookings[completedIndex] = _completedBookings[completedIndex].copyWith(
-          rating: rating,
-          review: review,
-          updatedAt: DateTime.now(),
-        );
+        _completedBookings[completedIndex] = _completedBookings[completedIndex]
+            .copyWith(
+              rating: rating,
+              review: review,
+              updatedAt: DateTime.now(),
+            );
       }
 
       notifyListeners();
@@ -239,6 +336,21 @@ class BookingProvider with ChangeNotifier {
     return _bookings.where((booking) => booking.status == status).toList();
   }
 
+  // Get today's bookings for caregiver dashboard
+  List<BookingModel> getTodaysBookings() {
+    final today = DateTime.now();
+    return _bookings.where((booking) {
+      final bookingDate = _parseScheduleDate(booking.schedule['date']);
+
+      return bookingDate.year == today.year &&
+          bookingDate.month == today.month &&
+          bookingDate.day == today.day &&
+          (booking.status == 'pending' ||
+              booking.status == 'confirmed' ||
+              booking.status == 'in-progress');
+    }).toList();
+  }
+
   // Get booking statistics
   Map<String, dynamic> getBookingStats() {
     final totalBookings = _bookings.length;
@@ -246,12 +358,16 @@ class BookingProvider with ChangeNotifier {
     final confirmedBookings = _bookings.where((b) => b.isConfirmed).length;
     final completedBookings = _bookings.where((b) => b.isCompleted).length;
     final cancelledBookings = _bookings.where((b) => b.isCancelled).length;
+    final todaysBookings = getTodaysBookings().length;
 
     double totalEarnings = 0;
     if (_userRole == 'CALiNGApro') {
       totalEarnings = _bookings
           .where((b) => b.isCompleted)
-          .fold(0, (sum, booking) => sum + (booking.serviceDetails['totalCost'] ?? 0));
+          .fold(
+            0,
+            (sum, booking) => sum + (booking.serviceDetails['totalCost'] ?? 0),
+          );
     }
 
     return {
@@ -260,6 +376,7 @@ class BookingProvider with ChangeNotifier {
       'confirmedBookings': confirmedBookings,
       'completedBookings': completedBookings,
       'cancelledBookings': cancelledBookings,
+      'todaysBookings': todaysBookings,
       'totalEarnings': totalEarnings,
     };
   }
@@ -276,17 +393,21 @@ class BookingProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    _bookingService.streamUserBookings(user.uid, role: _userRole).listen(
-      (bookings) {
-        _bookings = bookings;
-        _upcomingBookings = bookings.where((b) => b.isPending || b.isConfirmed).toList();
-        _completedBookings = bookings.where((b) => b.isCompleted).toList();
-        notifyListeners();
-      },
-      onError: (error) {
-        _setError('Booking stream error: $error');
-      },
-    );
+    _bookingService
+        .streamUserBookings(user.uid, role: _userRole)
+        .listen(
+          (bookings) {
+            _bookings = bookings;
+            _upcomingBookings = bookings
+                .where((b) => b.isPending || b.isConfirmed)
+                .toList();
+            _completedBookings = bookings.where((b) => b.isCompleted).toList();
+            notifyListeners();
+          },
+          onError: (error) {
+            _setError('Booking stream error: $error');
+          },
+        );
   }
 
   // Helper methods
@@ -310,9 +431,33 @@ class BookingProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Accept a booking (change status to confirmed)
+  Future<bool> acceptBooking(String bookingId) async {
+    try {
+      await _bookingService.updateBookingStatus(bookingId, 'confirmed');
+      await refresh(); // Refresh the bookings list
+      return true;
+    } catch (e) {
+      _setError('Failed to accept booking: $e');
+      return false;
+    }
+  }
+
+  // Decline a booking (change status to cancelled)
+  Future<bool> declineBooking(String bookingId) async {
+    try {
+      await _bookingService.updateBookingStatus(bookingId, 'cancelled');
+      await refresh(); // Refresh the bookings list
+      return true;
+    } catch (e) {
+      _setError('Failed to decline booking: $e');
+      return false;
+    }
+  }
+
   // Dispose method
   @override
   void dispose() {
     super.dispose();
   }
-} 
+}
