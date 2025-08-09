@@ -1,6 +1,7 @@
+// ignore_for_file: unused_local_variable, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../models/location_model.dart';
 
 class CustomMapMarkers {
   // Create custom marker for caregiver
@@ -12,7 +13,7 @@ class CustomMapMarkers {
     // Default marker colors based on role and availability
     Color markerColor;
     IconData iconData;
-    
+
     switch (role.toLowerCase()) {
       case 'rn':
       case 'registered nurse':
@@ -49,9 +50,7 @@ class CustomMapMarkers {
         iconData = Icons.person;
     }
 
-    return BitmapDescriptor.defaultMarkerWithHue(
-      _colorToHue(markerColor),
-    );
+    return BitmapDescriptor.defaultMarkerWithHue(_colorToHue(markerColor));
   }
 
   // Convert color to hue for marker
@@ -100,13 +99,13 @@ class CustomMapMarkers {
     double? rating,
   ) {
     List<String> info = [];
-    
+
     info.add(role);
-    
+
     if (distance != null) {
       info.add(distance);
     }
-    
+
     if (hourlyRate != null) {
       info.add('\$${hourlyRate.toStringAsFixed(0)}/hr');
     }
@@ -344,21 +343,18 @@ class CustomMapMarkers {
             // Availability indicator
             createAvailabilityIndicator(isAvailable),
             const SizedBox(height: 4),
-            
+
             // Name
             Text(
               name,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
-            
+
             // Role badge
             const SizedBox(height: 4),
             createRoleBadge(role),
-            
+
             // Additional info
             if (distance != null || hourlyRate != null || rating != null) ...[
               const SizedBox(height: 4),
@@ -366,14 +362,16 @@ class CustomMapMarkers {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (rating != null) createRatingIndicator(rating),
-                  if (rating != null && distance != null) const SizedBox(width: 4),
+                  if (rating != null && distance != null)
+                    const SizedBox(width: 4),
                   if (distance != null) createDistanceIndicator(distance),
-                  if (distance != null && hourlyRate != null) const SizedBox(width: 4),
+                  if (distance != null && hourlyRate != null)
+                    const SizedBox(width: 4),
                   if (hourlyRate != null) createPriceIndicator(hourlyRate),
                 ],
               ),
             ],
-            
+
             // Specializations (if any)
             if (specializations != null && specializations.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -382,23 +380,25 @@ class CustomMapMarkers {
                 runSpacing: 2,
                 children: specializations
                     .take(2)
-                    .map((spec) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
+                    .map(
+                      (spec) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          spec,
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: Colors.grey.shade700,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            spec,
-                            style: TextStyle(
-                              fontSize: 8,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ))
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -407,4 +407,4 @@ class CustomMapMarkers {
       ),
     );
   }
-} 
+}
