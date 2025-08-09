@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:calinga/screens/careseeker/booking_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
@@ -842,137 +843,111 @@ class _CareseekerHomePageState extends State<CareseekerHomePage> {
   }
 
   Widget _buildProfessionalCard(Map<String, dynamic> professional) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.blue[100],
-            backgroundImage: professional['profileImage'] != null
-                ? NetworkImage(professional['profileImage'])
-                : null,
-            child: professional['profileImage'] == null
-                ? Icon(Icons.person, size: 30, color: Colors.blue[600])
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => BookingFormScreen(caregiver: professional))),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: Colors.blue[100],
+              backgroundImage: professional['profileImage'] != null
+                  ? NetworkImage(professional['profileImage'])
+                  : null,
+              child: professional['profileImage'] == null
+                  ? Icon(Icons.person, size: 30, color: Colors.blue[600])
+                  : null,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    professional['name'] ?? 'Unknown',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    professional['role'] ?? 'Caregiver',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Text(
+                        professional['formattedDistance'] ?? 'Unknown distance',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(Icons.star, size: 14, color: Colors.orange[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${professional['rating']?.toStringAsFixed(1) ?? '0.0'}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  professional['name'] ?? 'Unknown',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: professional['isAvailable'] == true
+                        ? Colors.green[100]
+                        : Colors.red[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    professional['isAvailable'] == true ? 'Available' : 'Busy',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: professional['isAvailable'] == true
+                          ? Colors.green[700]
+                          : Colors.red[700],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  professional['role'] ?? 'Caregiver',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
-                    const SizedBox(width: 4),
-                    Text(
-                      professional['formattedDistance'] ?? 'Unknown distance',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.star, size: 14, color: Colors.orange[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${professional['rating']?.toStringAsFixed(1) ?? '0.0'}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
+                  '\$${professional['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hr',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[600],
+                  ),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: professional['isAvailable'] == true
-                      ? Colors.green[100]
-                      : Colors.red[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  professional['isAvailable'] == true ? 'Available' : 'Busy',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: professional['isAvailable'] == true
-                        ? Colors.green[700]
-                        : Colors.red[700],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '\$${professional['hourlyRate']?.toStringAsFixed(0) ?? '0'}/hr',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[600],
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// Find Care Page
-class FindCarePage extends StatelessWidget {
-  const FindCarePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Find Care Page'));
-  }
-}
-
-// Profile Page
-class CareseekerProfilePage extends StatelessWidget {
-  const CareseekerProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('CareSeeker Profile Page'));
-  }
-}
-
-// My Bookings Page
-class MyBookingsPage extends StatelessWidget {
-  const MyBookingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('My Bookings Page'));
-  }
-}
