@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:intl/intl.dart';
 
 class BookingValidator {

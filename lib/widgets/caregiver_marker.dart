@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class CaregiverMarker extends StatelessWidget {
@@ -7,12 +9,12 @@ class CaregiverMarker extends StatelessWidget {
   final double size;
 
   const CaregiverMarker({
-    Key? key,
+    super.key,
     required this.caregiver,
     this.onTap,
     this.isSelected = false,
     this.size = 40,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -138,11 +140,11 @@ class CaregiverClusterMarker extends StatelessWidget {
   final bool isSelected;
 
   const CaregiverClusterMarker({
-    Key? key,
+    super.key,
     required this.count,
     this.onTap,
     this.isSelected = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -188,11 +190,11 @@ class CaregiverInfoWindow extends StatelessWidget {
   final VoidCallback? onBook;
 
   const CaregiverInfoWindow({
-    Key? key,
+    super.key,
     required this.caregiver,
     this.onTap,
     this.onBook,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +331,7 @@ class CaregiverInfoWindow extends StatelessWidget {
 
 // Marker legend widget
 class MarkerLegend extends StatelessWidget {
-  const MarkerLegend({Key? key}) : super(key: key);
+  const MarkerLegend({super.key});
 
   @override
   Widget build(BuildContext context) {

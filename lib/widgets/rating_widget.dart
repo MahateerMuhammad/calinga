@@ -235,11 +235,11 @@ class CompactRatingDisplay extends StatelessWidget {
   final bool showReviewCount;
 
   const CompactRatingDisplay({
-    Key? key,
+    super.key,
     required this.rating,
     this.reviewCount = 0,
     this.showReviewCount = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -330,11 +330,11 @@ class RatingStatistics extends StatelessWidget {
   final int totalReviews;
 
   const RatingStatistics({
-    Key? key,
+    super.key,
     required this.ratingDistribution,
     required this.averageRating,
     required this.totalReviews,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

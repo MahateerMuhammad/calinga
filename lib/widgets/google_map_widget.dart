@@ -1,3 +1,5 @@
+// ignore_for_file: unused_import, use_super_parameters, deprecated_member_use, sized_box_for_whitespace
+
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';

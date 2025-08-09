@@ -1,3 +1,5 @@
+// ignore_for_file: unused_import, deprecated_member_use, use_super_parameters
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/booking_model.dart';

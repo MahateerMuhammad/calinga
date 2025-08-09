@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class AvailabilityStatusIndicator extends StatelessWidget {
@@ -6,11 +8,11 @@ class AvailabilityStatusIndicator extends StatelessWidget {
   final double size;
 
   const AvailabilityStatusIndicator({
-    Key? key,
+    super.key,
     required this.isAvailable,
     required this.status,
     this.size = 12,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
